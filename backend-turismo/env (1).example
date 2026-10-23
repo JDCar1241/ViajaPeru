@@ -1,0 +1,7 @@
+# Copia este archivo como .env y completa los valores (Supabase > Project Settings > API)
+PORT=3000
+SUPABASE_URL=https://TU-PROYECTO.supabase.co
+# Clave service_role: SOLO en el Backend, nunca en el Frontend ni en Git
+SUPABASE_SERVICE_ROLE_KEY=
+# Origen del Frontend para CORS (Vite usa 5173)
+CORS_ORIGIN=http://localhost:5173
