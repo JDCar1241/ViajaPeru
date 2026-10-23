@@ -26,7 +26,8 @@ export default function Confirmacion() {
         <div className="vp-ticket__talon"><span>Código</span><strong>{codigo}</strong></div>
       </article>
       <p className="vp-fila-botones">
-        <a className="vp-btn" href="#/paquetes">Registrar otra reserva</a>
+        <a className="vp-btn" href={'#/cobrar/' + r.id}>Cobrar ahora</a>
+        <a className="vp-btn vp-btn--borde" href="#/paquetes">Registrar otra reserva</a>
         <button className="vp-btn vp-btn--borde" onClick={() => window.print()}>Imprimir</button>
       </p>
     </main>

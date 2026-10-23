@@ -37,7 +37,10 @@ export default function MenuUsuario() {
       {abierto && (
         <div className="vp-cuenta__panel" role="menu">
           {PUEDEN_RESERVAR.includes(rol) && (
-            <a role="menuitem" className="vp-item" href="#/paquetes" onClick={cerrar}>Nueva reserva</a>
+            <>
+              <a role="menuitem" className="vp-item" href="#/paquetes" onClick={cerrar}>Nueva reserva</a>
+              <a role="menuitem" className="vp-item" href="#/cobros" onClick={cerrar}>Cobrar reservas</a>
+            </>
           )}
           <a role="menuitem" className="vp-item" href="#/cambiar-clave" onClick={cerrar}>Cambiar contraseña</a>
           <hr />

@@ -4,6 +4,7 @@ import cors from 'cors';
 import paquetes from './paquetes.routes.js';
 import auth from './auth.routes.js';
 import reservas from './reservas.routes.js';
+import cobros from './cobros.routes.js';
 
 const app = express();
 app.use(cors({ origin: process.env.CORS_ORIGIN || 'http://localhost:5173' }));
@@ -13,6 +14,7 @@ app.get('/api/salud', (_req, res) => res.json({ ok: true }));
 app.use('/api/paquetes', paquetes);
 app.use('/api/auth', auth);
 app.use('/api/reservas', reservas);
+app.use('/api/reservas', cobros);
 
 app.use((_req, res) => res.status(404).json({ error: 'Ruta no encontrada' }));
 app.use((err, _req, res, _next) => {
