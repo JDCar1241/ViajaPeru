@@ -28,6 +28,10 @@ export default function Detalle({ id }) {
   const itinerario = Array.isArray(p.itinerario) ? p.itinerario : [];
   const salidas = p.salidas || [];
 
+  // Lleva a la pantalla de reserva de esa salida (pide iniciar sesión si hace falta)
+  const elegir = (s) => { window.location.hash = `#/reservar/${id}/${s.id}`; };
+  const disponible = (s) => s.estado === 'Activa' && Number(s.cupos_disponibles) > 0;
+
   return (
     <>
       <a href="#/paquetes" className="volver">← Volver al catálogo</a>
@@ -65,10 +69,20 @@ export default function Detalle({ id }) {
                 <thead><tr><th>Fecha de inicio</th><th>Cupos</th><th /></tr></thead>
                 <tbody>
                   {salidas.map((s, k) => (
-                    <tr key={k}>
+                    <tr key={s.id ?? k}>
                       <td><strong>{fecha(s.fecha_inicio_viaje)}</strong></td>
                       <td>{s.cupos_disponibles}</td>
-                      <td><button className="btn" style={{ padding: '8px 14px' }}>Elegir</button></td>
+                      <td>
+                        <button
+                          className="btn"
+                          style={{ padding: '8px 14px' }}
+                          disabled={!disponible(s)}
+                          onClick={() => elegir(s)}
+                          aria-label={`Elegir la salida del ${fecha(s.fecha_inicio_viaje)}`}
+                        >
+                          {disponible(s) ? 'Elegir' : 'Sin cupos'}
+                        </button>
+                      </td>
                     </tr>
                   ))}
                 </tbody>

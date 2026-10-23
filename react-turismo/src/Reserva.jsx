@@ -1,15 +1,73 @@
 import { useEffect, useState } from 'react';
 import './reservas.css';
 import Campo from './Campo.jsx';
-import { esCorreo, esDni, esTelefono, noVacio } from './validaciones.js';
+import { esCorreo, esTelefono, noVacio } from './validaciones.js';
 import { pedir, crearReserva, ultima } from './api-reservas.js';
 import { useSesion } from './auth.js';
+import { TIPOS, validarDocumento, limpiarDocumento, edadAl, validarNacimiento } from './documentos.js';
 
 // Ajusta estos nombres si tus columnas se llaman distinto
 const C = { id: 'id', fecha: 'fecha_inicio_viaje', cupos: 'cupos_disponibles', estado: 'estado' };
 const ROLES = ['Recepcionista', 'Gerente']; // roles que pueden registrar reservas (confirmar)
 const fecha = (v) => new Date(v).toLocaleDateString('es-PE', { day: 'numeric', month: 'long', year: 'numeric' });
-const persona = () => ({ dni: '', apellidos: '', nombres: '' });
+const persona = () => ({ tipo_documento: 'DNI', nro_documento: '', apellidos: '', nombres: '', fecha_nacimiento: '' });
+// Confirmacion.jsx puede seguir leyendo "dni"
+const conDni = (p) => ({ ...p, dni: p.nro_documento });
+
+// FUERA del componente Reserva: si se define dentro, React la recrea en cada tecla y el campo pierde el foco
+function Fila({ pre, p, onCambio, err, fechaSalida }) {
+  const [busq, setBusq] = useState({ estado: 'idle', msg: '' });
+  const esDni = p.tipo_documento === 'DNI';
+  const edad = p.fecha_nacimiento ? edadAl(p.fecha_nacimiento, fechaSalida) : null;
+
+  const cambiarDoc = (cambios) => { setBusq({ estado: 'idle', msg: '' }); onCambio(cambios); };
+
+  async function buscar() {
+    if (validarDocumento('DNI', p.nro_documento)) return setBusq({ estado: 'error', msg: 'Escribe un DNI de 8 dígitos para buscar.' });
+    setBusq({ estado: 'buscando', msg: '' });
+    try {
+      const r = await pedir('/consultas/dni/' + p.nro_documento);
+      if (r?.encontrado) {
+        onCambio({ apellidos: r.apellidos, nombres: r.nombres });
+        setBusq({ estado: 'ok', msg: 'Datos encontrados. Revísalos y corrígelos si hace falta.' });
+      } else {
+        setBusq({ estado: 'vacio', msg: 'No encontramos este DNI en la consulta (es normal con menores de edad). Ingresa los datos a mano.' });
+      }
+    } catch {
+      setBusq({ estado: 'vacio', msg: 'No pudimos hacer la consulta. Ingresa los datos a mano.' });
+    }
+  }
+
+  return (
+    <>
+      <div className="vp-fila">
+        <Campo etiqueta="Tipo de documento" opciones={TIPOS} value={p.tipo_documento}
+          onChange={(e) => cambiarDoc({ tipo_documento: e.target.value, nro_documento: '' })} />
+        <Campo etiqueta="Número de documento" autoComplete="off" inputMode={esDni ? 'numeric' : 'text'}
+          maxLength={esDni ? 8 : 12} value={p.nro_documento}
+          onChange={(e) => cambiarDoc({ nro_documento: limpiarDocumento(p.tipo_documento, e.target.value) })}
+          error={err[pre + 'nro_documento']} />
+      </div>
+      {esDni && (
+        <p>
+          <button type="button" className="vp-btn vp-btn--borde" onClick={buscar} disabled={busq.estado === 'buscando'}>
+            {busq.estado === 'buscando' ? 'Buscando…' : 'Buscar DNI'}
+          </button>
+        </p>
+      )}
+      {busq.msg && <p className="vp-sub" role="status">{busq.msg}</p>}
+      <div className="vp-fila">
+        <Campo etiqueta="Apellidos" value={p.apellidos} onChange={(e) => onCambio({ apellidos: e.target.value })} error={err[pre + 'apellidos']} />
+        <Campo etiqueta="Nombres" value={p.nombres} onChange={(e) => onCambio({ nombres: e.target.value })} error={err[pre + 'nombres']} />
+        <Campo etiqueta="Fecha de nacimiento" type="date" value={p.fecha_nacimiento}
+          onChange={(e) => onCambio({ fecha_nacimiento: e.target.value })} error={err[pre + 'fecha_nacimiento']} />
+      </div>
+      {edad !== null && edad >= 0 && edad < 18 && (
+        <p className="vp-sub" role="status">Menor de edad ({edad} {edad === 1 ? 'año' : 'años'} a la fecha de la salida).</p>
+      )}
+    </>
+  );
+}
 
 export default function Reserva({ paqueteId, salidaId }) {
   const sesion = useSesion();
@@ -47,20 +105,32 @@ export default function Reserva({ paqueteId, salidaId }) {
     </div></main>
   );
 
-  const setC = (k) => (e) => setCliente({ ...cliente, [k]: e.target.value });
-  const setA = (i, k) => (e) => setAcomp(acomp.map((a, j) => (j === i ? { ...a, [k]: e.target.value } : a)));
+  const fechaSalida = salida[C.fecha];
+  const cambiarC = (cambios) => setCliente((c) => ({ ...c, ...cambios }));
+  const cambiarA = (i) => (cambios) => setAcomp((l) => l.map((a, j) => (j === i ? { ...a, ...cambios } : a)));
+  const setCampoC = (k) => (e) => cambiarC({ [k]: e.target.value });
 
   function validar() {
     const n = {};
-    const chk = (pre, p) => {
-      if (!esDni(p.dni)) n[pre + 'dni'] = 'El DNI tiene 8 dígitos.';
+    const vistos = new Set();
+    const chk = (pre, p, esCliente) => {
+      const d = validarDocumento(p.tipo_documento, p.nro_documento);
+      if (d) n[pre + 'nro_documento'] = d;
+      else {
+        const clave = p.tipo_documento + ':' + p.nro_documento.toUpperCase();
+        if (vistos.has(clave)) n[pre + 'nro_documento'] = 'Este documento está repetido en la reserva.';
+        vistos.add(clave);
+      }
       if (!noVacio(p.apellidos)) n[pre + 'apellidos'] = 'Escribe los apellidos.';
       if (!noVacio(p.nombres)) n[pre + 'nombres'] = 'Escribe los nombres.';
+      const f = validarNacimiento(p.fecha_nacimiento, fechaSalida);
+      if (f) n[pre + 'fecha_nacimiento'] = f;
+      else if (esCliente && edadAl(p.fecha_nacimiento, fechaSalida) < 18) n[pre + 'fecha_nacimiento'] = 'El cliente que reserva debe ser mayor de edad.';
     };
-    chk('c.', cliente);
+    chk('c.', cliente, true);
     if (!esCorreo(cliente.correo)) n['c.correo'] = 'Escribe un correo válido.';
     if (!esTelefono(cliente.telefono)) n['c.telefono'] = 'El teléfono tiene 9 dígitos.';
-    acomp.forEach((a, i) => chk('a' + i + '.', a));
+    acomp.forEach((a, i) => chk('a' + i + '.', a, false));
     return n;
   }
 
@@ -71,7 +141,7 @@ export default function Reserva({ paqueteId, salidaId }) {
     setEnviando(true);
     try {
       const r = await crearReserva({ salida_id: salida[C.id], cliente, acompanantes: acomp });
-      ultima.datos = { ...r, paquete: paquete.nombre, fecha: salida[C.fecha], cliente, acompanantes: acomp, personas };
+      ultima.datos = { ...r, paquete: paquete.nombre, fecha: salida[C.fecha], cliente: conDni(cliente), acompanantes: acomp.map(conDni), personas };
       window.location.hash = '#/reserva-confirmada';
     } catch (ex) {
       if (ex.estado === 409) { setFallo('Otra reserva ocupó cupos de esta salida. Revisa los cupos actualizados.'); cargar(); }
@@ -79,28 +149,20 @@ export default function Reserva({ paqueteId, salidaId }) {
     } finally { setEnviando(false); }
   }
 
-  const Fila = ({ pre, p, set }) => (
-    <div className="vp-fila">
-      <Campo etiqueta="DNI" inputMode="numeric" maxLength={8} value={p.dni} onChange={set('dni')} error={err[pre + 'dni']} />
-      <Campo etiqueta="Apellidos" value={p.apellidos} onChange={set('apellidos')} error={err[pre + 'apellidos']} />
-      <Campo etiqueta="Nombres" value={p.nombres} onChange={set('nombres')} error={err[pre + 'nombres']} />
-    </div>
-  );
-
   return (
     <main className="vp-reserva">
       <header>
         <h1>Registrar reserva</h1>
-        <p className="vp-sub">{paquete.nombre} · salida del {fecha(salida[C.fecha])}</p>
+        <p className="vp-sub">{paquete.nombre} · salida del {fecha(fechaSalida)}</p>
       </header>
 
       <form onSubmit={enviar} noValidate>
         <section className="vp-panel">
           <h2>Cliente</h2>
-          <Fila pre="c." p={cliente} set={setC} />
+          <Fila pre="c." p={cliente} onCambio={cambiarC} err={err} fechaSalida={fechaSalida} />
           <div className="vp-fila vp-fila--2">
-            <Campo etiqueta="Correo" type="email" value={cliente.correo} onChange={setC('correo')} error={err['c.correo']} />
-            <Campo etiqueta="Teléfono" type="tel" inputMode="numeric" maxLength={9} value={cliente.telefono} onChange={setC('telefono')} error={err['c.telefono']} />
+            <Campo etiqueta="Correo" type="email" value={cliente.correo} onChange={setCampoC('correo')} error={err['c.correo']} />
+            <Campo etiqueta="Teléfono" type="tel" inputMode="numeric" maxLength={9} value={cliente.telefono} onChange={setCampoC('telefono')} error={err['c.telefono']} />
           </div>
         </section>
 
@@ -109,7 +171,7 @@ export default function Reserva({ paqueteId, salidaId }) {
           {acomp.length === 0 && <p className="vp-sub">El cliente viaja solo. Agrega acompañantes si corresponde.</p>}
           {acomp.map((a, i) => (
             <div className="vp-acomp" key={i}>
-              <Fila pre={'a' + i + '.'} p={a} set={(k) => setA(i, k)} />
+              <Fila pre={'a' + i + '.'} p={a} onCambio={cambiarA(i)} err={err} fechaSalida={fechaSalida} />
               <button type="button" className="vp-btn vp-btn--borde" onClick={() => setAcomp(acomp.filter((_, j) => j !== i))}>Quitar</button>
             </div>
           ))}
