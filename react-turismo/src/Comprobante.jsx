@@ -100,6 +100,7 @@ export default function Comprobante({ id }) {
         <button className="btn" onClick={() => abrirPdf('descargar')}>Descargar PDF</button>
         <button className="btn sec" onClick={() => abrirPdf('imprimir')}>Imprimir</button>
       </p>
+
       <p><a href="#/cobros">Volver a reservas</a> · <a href="#/paquetes">Registrar otra reserva</a></p>
     </main>
   );

@@ -6,14 +6,43 @@ import { soles, cent } from './moneda.js';
 
 const ROLES = ['Recepcionista', 'Gerente'];
 const METODOS = [['Efectivo', 'Efectivo'], ['Tarjeta', 'Tarjeta'], ['QR', 'QR (Yape o Plin)']];
+const CULQI_KEY = import.meta.env.VITE_CULQI_PUBLIC_KEY;
+
 const nueva = (monto = '') => ({ metodo: 'Efectivo', medio: 'Yape', monto, recibido: '', referencia: '' });
 const fecha = (v) => new Date(v).toLocaleDateString('es-PE', { day: 'numeric', month: 'long', year: 'numeric' });
+const emailOk = (v) => /^\S+@\S+\.\S+$/.test(String(v).trim());
+
+// Abre el formulario de Culqi y devuelve el ID del token de la tarjeta.
+// Los datos de la tarjeta van directo a Culqi: nunca pasan por tu servidor.
+function pedirToken({ monto, email }) {
+  return new Promise((resolve, reject) => {
+    if (!window.CulqiCheckout) return reject(new Error('No cargó el formulario de Culqi. Recarga la página.'));
+    if (!CULQI_KEY) return reject(new Error('Falta VITE_CULQI_PUBLIC_KEY en el .env del front.'));
+
+    const culqi = new window.CulqiCheckout(CULQI_KEY, {
+      settings: { title: 'ViajaPeru', currency: 'PEN', amount: monto }, // monto en céntimos
+      client: { email },
+      options: { lang: 'es', paymentMethods: { tarjeta: true, yape: false } },
+    });
+
+    culqi.culqi = () => {
+      if (culqi.token) {
+        resolve(culqi.token.id);
+        if (typeof culqi.close === 'function') culqi.close();
+      } else if (culqi.error) {
+        reject(new Error(culqi.error.user_message || 'No se pudo procesar la tarjeta.'));
+      }
+    };
+    culqi.open();
+  });
+}
 
 export default function Cobrar({ id }) {
   const sesion = useSesion();
   const [r, setR] = useState(null);
   const [carga, setCarga] = useState('cargando');
   const [lineas, setLineas] = useState([]);
+  const [correo, setCorreo] = useState('');
   const [fallo, setFallo] = useState('');
   const [enviando, setEnviando] = useState(false);
   const [recibo, setRecibo] = useState(null);
@@ -21,7 +50,12 @@ export default function Cobrar({ id }) {
   const cargar = () => {
     setCarga('cargando');
     pedir('/reservas/' + id)
-      .then((d) => { setR(d); setLineas([nueva(Number(d.total).toFixed(2))]); setCarga('listo'); })
+      .then((d) => {
+        setR(d);
+        setLineas([nueva(Number(d.total).toFixed(2))]);
+        setCorreo(d.cliente?.correo || '');
+        setCarga('listo');
+      })
       .catch(() => setCarga('error'));
   };
   useEffect(() => { if (!sesion) { window.location.hash = '#/login'; return; } cargar(); }, [id, sesion]);
@@ -50,26 +84,38 @@ export default function Cobrar({ id }) {
   const falta = total - pagado;
   const vueltoDe = (l) => (l.metodo === 'Efectivo' && l.recibido !== '' ? Math.max(0, cent(l.recibido) - cent(l.monto)) : 0);
   const vuelto = lineas.reduce((s, l) => s + vueltoDe(l), 0);
+  const lineaTarjeta = lineas.find((l) => l.metodo === 'Tarjeta');
+  const tarjetasMultiples = lineas.filter((l) => l.metodo === 'Tarjeta').length > 1;
+
   const errLinea = (l) => {
     if (cent(l.monto) <= 0) return 'Escribe un monto mayor a 0.';
     if (l.metodo === 'Efectivo' && l.recibido !== '' && cent(l.recibido) < cent(l.monto)) return 'El efectivo recibido no cubre el monto.';
+    if (l.metodo === 'Tarjeta' && tarjetasMultiples) return 'Solo se admite un pago con tarjeta por operación.';
     return '';
   };
-  const valido = falta === 0 && lineas.every((l) => !errLinea(l));
+  const valido = falta === 0 && lineas.every((l) => !errLinea(l)) && (!lineaTarjeta || emailOk(correo));
   const setL = (i, k) => (e) => setLineas(lineas.map((l, j) => (j === i ? { ...l, [k]: e.target.value } : l)));
 
   async function cobrar() {
-    setFallo(''); setEnviando(true);
+    setFallo('');
     try {
+      // 1) Si hay tarjeta, primero se obtiene el token con el formulario de Culqi
+      let token;
+      if (lineaTarjeta) token = await pedirToken({ monto: cent(lineaTarjeta.monto), email: correo.trim() });
+
+      // 2) Se envía todo al backend (él crea el cargo y registra el pago)
+      setEnviando(true);
       await pedir('/reservas/' + id + '/pagos', {
         method: 'POST',
         body: JSON.stringify({
+          email: lineaTarjeta ? correo.trim() : undefined,
           pagos: lineas.map((l) => ({
             metodo: l.metodo,
             medio: l.metodo === 'QR' ? l.medio : undefined,
             monto: cent(l.monto) / 100,
             recibido: l.metodo === 'Efectivo' && l.recibido !== '' ? cent(l.recibido) / 100 : undefined,
-            referencia: l.referencia.trim() || undefined,
+            referencia: l.metodo !== 'Tarjeta' && l.referencia.trim() ? l.referencia.trim() : undefined,
+            token: l === lineaTarjeta ? token : undefined,
           })),
         }),
       });
@@ -99,9 +145,17 @@ export default function Cobrar({ id }) {
                   <label className="fld">Monto a cobrar (S/)
                     <input type="number" min="0" step="0.01" inputMode="decimal" value={l.monto} onChange={setL(i, 'monto')} />
                   </label>
-                  {l.metodo === 'Efectivo'
-                    ? <label className="fld">Efectivo recibido (S/)<input type="number" min="0" step="0.01" inputMode="decimal" value={l.recibido} onChange={setL(i, 'recibido')} placeholder="Igual al monto" /></label>
-                    : <label className="fld">Referencia (opcional)<input value={l.referencia} onChange={setL(i, 'referencia')} placeholder="N.º de operación" /></label>}
+                  {l.metodo === 'Efectivo' && (
+                    <label className="fld">Efectivo recibido (S/)
+                      <input type="number" min="0" step="0.01" inputMode="decimal" value={l.recibido} onChange={setL(i, 'recibido')} placeholder="Igual al monto" />
+                    </label>
+                  )}
+                  {l.metodo === 'QR' && (
+                    <label className="fld">Referencia (opcional)
+                      <input value={l.referencia} onChange={setL(i, 'referencia')} placeholder="N.º de operación" />
+                    </label>
+                  )}
+                  {l.metodo === 'Tarjeta' && <p className="muted">Se pedirá la tarjeta al registrar el pago.</p>}
                 </div>
                 {vl > 0 && <p className="cb-vuelto">Vuelto: {soles(vl / 100)}</p>}
                 {err && <p className="cb-error" role="alert">{err}</p>}
@@ -109,6 +163,13 @@ export default function Cobrar({ id }) {
               </div>
             );
           })}
+
+          {lineaTarjeta && (
+            <label className="fld">Correo del cliente (obligatorio para tarjeta)
+              <input type="email" value={correo} onChange={(e) => setCorreo(e.target.value)} placeholder="cliente@correo.com" />
+            </label>
+          )}
+
           <button type="button" className="btn sec" disabled={falta <= 0} onClick={() => setLineas([...lineas, nueva((falta / 100).toFixed(2))])}>Agregar otro método</button>
         </section>
 
