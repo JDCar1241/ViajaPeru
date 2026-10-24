@@ -6,6 +6,8 @@ import auth from './auth.routes.js';
 import reservas from './reservas.routes.js';
 import cobros from './cobros.routes.js';
 import consultas from './consultas.routes.js';
+import comprobantes from './comprobantes.routes.js';   // junto a los otros imports
+
 
 const app = express();
 app.use(cors({ origin: process.env.CORS_ORIGIN || 'http://localhost:5173' }));
@@ -17,6 +19,7 @@ app.use('/api/auth', auth);
 app.use('/api/reservas', reservas);
 app.use('/api/reservas', cobros);
 app.use('/api/consultas', consultas);
+app.use('/api', comprobantes);                          // junto a los otros app.use, antes del "Ruta no encontrada"
 
 app.use((_req, res) => res.status(404).json({ error: 'Ruta no encontrada' }));
 app.use((err, _req, res, _next) => {

@@ -37,7 +37,7 @@ export default function Cobrar({ id }) {
       <h1>{r.codigo} está pagada</h1>
       <p className="muted">Se cobraron {soles(recibo.total / 100)} a {r.cliente.nombres} {r.cliente.apellidos}.</p>
       {recibo.vuelto > 0 && <div className="cb-vuelto-grande"><small>Entrega de vuelto</small>{soles(recibo.vuelto / 100)}</div>}
-      <p className="cb-botones"><a className="btn" href="#/cobros">Cobrar otra reserva</a><button className="btn sec" onClick={() => window.print()}>Imprimir</button></p>
+      <p className="cb-botones"><a className="btn" href={'#/comprobante/' + id}>Emitir comprobante</a><a className="btn sec" href="#/cobros">Cobrar otra reserva</a></p>
     </main>
   );
 

@@ -18,3 +18,7 @@
 .cb-vuelto-grande small{font-size:14px;font-weight:600;letter-spacing:0;color:var(--muted)}
 .cb-botones{display:flex;gap:12px;justify-content:center}
 @media print{header,footer,.cb-botones{display:none}}
+.btn.sec{margin-top:0}
+.cb-tabs{align-items:flex-start}
+main table th,main table td{padding-right:20px}
+main table th:last-child,main table td:last-child{padding-right:0}
