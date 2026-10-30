@@ -7,6 +7,7 @@ import reservas from './reservas.routes.js';
 import cobros from './cobros.routes.js';
 import consultas from './consultas.routes.js';
 import comprobantes from './comprobantes.routes.js';   // junto a los otros imports
+import consultasCe from './consultas-ce.routes.js';
 
 
 const app = express();
@@ -18,6 +19,7 @@ app.use('/api/paquetes', paquetes);
 app.use('/api/auth', auth);
 app.use('/api/reservas', reservas);
 app.use('/api/reservas', cobros);
+app.use('/api/consultas', consultasCe);
 app.use('/api/consultas', consultas);
 app.use('/api', comprobantes);                          // junto a los otros app.use, antes del "Ruta no encontrada"
 

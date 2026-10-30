@@ -1,4 +1,4 @@
-import { useEffect, useState } from 'react';
+import { useEffect, useRef, useState } from 'react';
 import './cobros.css';
 import { pedir } from './api-reservas.js';
 import { useSesion } from './auth.js';
@@ -31,6 +31,7 @@ function pedirToken({ monto, email }) {
         if (typeof culqi.close === 'function') culqi.close();
       } else if (culqi.error) {
         reject(new Error(culqi.error.user_message || 'No se pudo procesar la tarjeta.'));
+        if (typeof culqi.close === 'function') culqi.close();
       }
     };
     culqi.open();
@@ -45,7 +46,9 @@ export default function Cobrar({ id }) {
   const [correo, setCorreo] = useState('');
   const [fallo, setFallo] = useState('');
   const [enviando, setEnviando] = useState(false);
+  const [esperandoTarjeta, setEsperandoTarjeta] = useState(false);
   const [recibo, setRecibo] = useState(null);
+  const intento = useRef(0); // identifica el intento de cobro vigente (para poder cancelar)
 
   const cargar = () => {
     setCarga('cargando');
@@ -98,10 +101,16 @@ export default function Cobrar({ id }) {
 
   async function cobrar() {
     setFallo('');
+    const miIntento = ++intento.current;
     try {
       // 1) Si hay tarjeta, primero se obtiene el token con el formulario de Culqi
       let token;
-      if (lineaTarjeta) token = await pedirToken({ monto: cent(lineaTarjeta.monto), email: correo.trim() });
+      if (lineaTarjeta) {
+        setEsperandoTarjeta(true);
+        token = await pedirToken({ monto: cent(lineaTarjeta.monto), email: correo.trim() });
+        if (miIntento !== intento.current) return; // el recepcionista canceló mientras tanto
+        setEsperandoTarjeta(false);
+      }
 
       // 2) Se envía todo al backend (él crea el cargo y registra el pago)
       setEnviando(true);
@@ -121,10 +130,16 @@ export default function Cobrar({ id }) {
       });
       setRecibo({ total, vuelto });
     } catch (ex) {
+      if (miIntento !== intento.current) return;
       setFallo(ex.message || 'No pudimos registrar el pago.');
       if (ex.estado === 409) cargar();
-    } finally { setEnviando(false); }
+    } finally {
+      if (miIntento === intento.current) { setEnviando(false); setEsperandoTarjeta(false); }
+    }
   }
+
+  // Si cerró el formulario de Culqi sin pagar, el botón se libera para volver a intentar
+  const cancelarTarjeta = () => { intento.current++; setEsperandoTarjeta(false); setEnviando(false); };
 
   return (
     <main>
@@ -177,7 +192,7 @@ export default function Cobrar({ id }) {
           <h2>Reserva</h2>
           <dl className="cb-datos">
             <div><dt>Cliente</dt><dd>{r.cliente.nombres} {r.cliente.apellidos}</dd></div>
-            <div><dt>DNI</dt><dd>{r.cliente.dni}</dd></div>
+            <div><dt>{r.cliente.tipo_documento || 'DNI'}</dt><dd>{r.cliente.numero_documento || r.cliente.dni}</dd></div>
             <div><dt>Paquete</dt><dd>{r.paquete.nombre}</dd></div>
             <div><dt>Salida</dt><dd>{fecha(r.fecha_inicio_viaje)}</dd></div>
             <div><dt>Personas</dt><dd>{r.num_personas}</dd></div>
@@ -194,7 +209,10 @@ export default function Cobrar({ id }) {
         </dl>
         <div>
           {fallo && <p className="cb-error cb-error--claro" role="alert">{fallo}</p>}
-          <button className="btn claro" disabled={!valido || enviando} onClick={cobrar}>{enviando ? 'Registrando…' : 'Registrar pago'}</button>
+          <button className="btn claro" disabled={!valido || enviando || esperandoTarjeta} onClick={cobrar}>
+            {enviando ? 'Registrando…' : esperandoTarjeta ? 'Esperando la tarjeta…' : 'Registrar pago'}
+          </button>
+          {esperandoTarjeta && <button type="button" className="btn sec sm" onClick={cancelarTarjeta}>Cancelar</button>}
         </div>
       </div>
     </main>

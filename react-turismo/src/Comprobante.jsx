@@ -13,6 +13,7 @@ const TIPOS = [
   { v: 'boleta', t: 'Boleta con documento', d: 'Con DNI, CE o pasaporte.' },
   { v: 'factura', t: 'Factura', d: 'Con RUC y razón social.' },
 ];
+const RE_RUC = /^(10|15|16|17|20)\d{9}$/; // 11 dígitos; 10 = persona natural, 20 = empresa
 const limpiar = (v) => v.replace(/\s+/g, '').toUpperCase();
 const errDoc = (tipo, n) => {
   const x = limpiar(n);
@@ -30,6 +31,7 @@ export default function Comprobante({ id }) {
   const [tipo, setTipo] = useState('simple');
   const [doc, setDoc] = useState({ tipo_documento: 'DNI', numero_documento: '', nombre: '' });
   const [fac, setFac] = useState({ ruc: '', razon: '', direccion: '' });
+  const [busqRuc, setBusqRuc] = useState({ estado: 'idle', msg: '' });
   const [err, setErr] = useState({});
   const [fallo, setFallo] = useState('');
   const [enviando, setEnviando] = useState(false);
@@ -114,7 +116,7 @@ export default function Comprobante({ id }) {
       if (!doc.nombre.trim()) n.nombre = 'Escribe el nombre del comprador.';
     }
     if (tipo === 'factura') {
-      if (!/^\d{11}$/.test(fac.ruc.trim())) n.ruc = 'El RUC tiene 11 dígitos.';
+      if (!RE_RUC.test(fac.ruc.trim())) n.ruc = 'El RUC tiene 11 dígitos y empieza con 10, 15, 16, 17 o 20.';
       if (!fac.razon.trim()) n.razon = 'Escribe la razón social.';
       if (!fac.direccion.trim()) n.direccion = 'Escribe la dirección.';
     }
@@ -140,6 +142,31 @@ export default function Comprobante({ id }) {
 
   const setD = (k) => (e) => setDoc({ ...doc, [k]: e.target.value });
   const setF = (k) => (e) => setFac({ ...fac, [k]: e.target.value });
+
+  // Al cambiar el RUC solo se aceptan dígitos y se limpia el mensaje de la búsqueda anterior
+  const cambiarRuc = (e) => {
+    setBusqRuc({ estado: 'idle', msg: '' });
+    setFac({ ...fac, ruc: e.target.value.replace(/\D/g, '').slice(0, 11) });
+  };
+
+  async function buscarRuc() {
+    const ruc = fac.ruc.trim();
+    if (!RE_RUC.test(ruc)) return setBusqRuc({ estado: 'error', msg: 'Escribe un RUC de 11 dígitos para buscar.' });
+    setBusqRuc({ estado: 'buscando', msg: '' });
+    try {
+      const d = await pedir('/consultas/ruc/' + ruc);
+      if (!d?.encontrado) {
+        return setBusqRuc({ estado: 'vacio', msg: 'No encontramos este RUC en la consulta. Ingresa los datos a mano.' });
+      }
+      setFac((f) => ({ ...f, razon: d.razon_social, direccion: d.direccion }));
+      setErr({});
+      setBusqRuc(d.activo
+        ? { estado: 'ok', msg: 'Datos encontrados. Revísalos y corrígelos si hace falta.' }
+        : { estado: 'aviso', msg: `Ojo: este RUC figura como ${d.estado} y ${d.condicion}. Confirma con el cliente antes de emitir la factura.` });
+    } catch {
+      setBusqRuc({ estado: 'vacio', msg: 'No pudimos hacer la consulta. Ingresa los datos a mano.' });
+    }
+  }
 
   return (
     <main>
@@ -180,20 +207,30 @@ export default function Comprobante({ id }) {
           )}
 
           {tipo === 'factura' && (
-            <div className="cp-campos">
-              <label className="fld">RUC
-                <input inputMode="numeric" maxLength={11} value={fac.ruc} onChange={setF('ruc')} aria-invalid={!!err.ruc} />
-                {err.ruc && <span className="cb-error" role="alert">{err.ruc}</span>}
-              </label>
-              <label className="fld lg">Razón social
-                <input value={fac.razon} onChange={setF('razon')} aria-invalid={!!err.razon} />
-                {err.razon && <span className="cb-error" role="alert">{err.razon}</span>}
-              </label>
-              <label className="fld lg">Dirección fiscal
-                <input value={fac.direccion} onChange={setF('direccion')} aria-invalid={!!err.direccion} />
-                {err.direccion && <span className="cb-error" role="alert">{err.direccion}</span>}
-              </label>
-            </div>
+            <>
+              <div className="cp-campos">
+                <label className="fld">RUC
+                  <input inputMode="numeric" maxLength={11} value={fac.ruc} onChange={cambiarRuc} aria-invalid={!!err.ruc} />
+                  {err.ruc && <span className="cb-error" role="alert">{err.ruc}</span>}
+                </label>
+                <label className="fld lg">Razón social
+                  <input value={fac.razon} onChange={setF('razon')} aria-invalid={!!err.razon} />
+                  {err.razon && <span className="cb-error" role="alert">{err.razon}</span>}
+                </label>
+                <label className="fld lg">Dirección fiscal
+                  <input value={fac.direccion} onChange={setF('direccion')} aria-invalid={!!err.direccion} />
+                  {err.direccion && <span className="cb-error" role="alert">{err.direccion}</span>}
+                </label>
+              </div>
+              <p>
+                <button type="button" className="btn sec" onClick={buscarRuc} disabled={busqRuc.estado === 'buscando'}>
+                  {busqRuc.estado === 'buscando' ? 'Buscando…' : 'Buscar RUC'}
+                </button>
+              </p>
+              {busqRuc.msg && (
+                <p className={busqRuc.estado === 'aviso' || busqRuc.estado === 'error' ? 'cb-error' : 'muted'} role="status">{busqRuc.msg}</p>
+              )}
+            </>
           )}
 
           {err.tipo && <p className="cb-error" role="alert">{err.tipo}</p>}

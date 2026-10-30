@@ -14,24 +14,35 @@ const persona = () => ({ tipo_documento: 'DNI', nro_documento: '', apellidos: ''
 // Confirmacion.jsx puede seguir leyendo "dni"
 const conDni = (p) => ({ ...p, dni: p.nro_documento });
 
+// Documentos que se pueden consultar y la ruta del Backend que los busca.
+// Ajusta la clave 'CE' si en documentos.js ese tipo se llama distinto.
+const CONSULTA = { DNI: 'dni', CE: 'ce' };
+const MSG_VACIO = {
+  DNI: 'No encontramos este DNI en la consulta (es normal con menores de edad). Ingresa los datos a mano.',
+  CE: 'No encontramos este carnet de extranjería en la consulta. Ingresa los datos a mano.',
+};
+
 // FUERA del componente Reserva: si se define dentro, React la recrea en cada tecla y el campo pierde el foco
 function Fila({ pre, p, onCambio, err, fechaSalida }) {
   const [busq, setBusq] = useState({ estado: 'idle', msg: '' });
   const esDni = p.tipo_documento === 'DNI';
+  const ruta = CONSULTA[p.tipo_documento]; // undefined si el documento no se puede consultar (ej. pasaporte)
   const edad = p.fecha_nacimiento ? edadAl(p.fecha_nacimiento, fechaSalida) : null;
 
   const cambiarDoc = (cambios) => { setBusq({ estado: 'idle', msg: '' }); onCambio(cambios); };
 
   async function buscar() {
-    if (validarDocumento('DNI', p.nro_documento)) return setBusq({ estado: 'error', msg: 'Escribe un DNI de 8 dígitos para buscar.' });
+    if (!ruta) return;
+    const invalido = validarDocumento(p.tipo_documento, p.nro_documento);
+    if (invalido) return setBusq({ estado: 'error', msg: invalido });
     setBusq({ estado: 'buscando', msg: '' });
     try {
-      const r = await pedir('/consultas/dni/' + p.nro_documento);
+      const r = await pedir('/consultas/' + ruta + '/' + encodeURIComponent(p.nro_documento));
       if (r?.encontrado) {
         onCambio({ apellidos: r.apellidos, nombres: r.nombres });
         setBusq({ estado: 'ok', msg: 'Datos encontrados. Revísalos y corrígelos si hace falta.' });
       } else {
-        setBusq({ estado: 'vacio', msg: 'No encontramos este DNI en la consulta (es normal con menores de edad). Ingresa los datos a mano.' });
+        setBusq({ estado: 'vacio', msg: MSG_VACIO[p.tipo_documento] });
       }
     } catch {
       setBusq({ estado: 'vacio', msg: 'No pudimos hacer la consulta. Ingresa los datos a mano.' });
@@ -48,10 +59,10 @@ function Fila({ pre, p, onCambio, err, fechaSalida }) {
           onChange={(e) => cambiarDoc({ nro_documento: limpiarDocumento(p.tipo_documento, e.target.value) })}
           error={err[pre + 'nro_documento']} />
       </div>
-      {esDni && (
+      {ruta && (
         <p>
           <button type="button" className="vp-btn vp-btn--borde" onClick={buscar} disabled={busq.estado === 'buscando'}>
-            {busq.estado === 'buscando' ? 'Buscando…' : 'Buscar DNI'}
+            {busq.estado === 'buscando' ? 'Buscando…' : 'Buscar ' + p.tipo_documento}
           </button>
         </p>
       )}
