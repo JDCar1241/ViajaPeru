@@ -32,22 +32,24 @@ async function post(ruta, cuerpo) {
   return data;
 }
 
-// monto en soles (ej. 350.5). Culqi pide céntimos enteros.
-export function crearCargo({ monto, email, tokenId, descripcion, reservaId }) {
+// "centimos" es un ENTERO en la moneda del cargo (S/ 350.50 = 35050; US$ 93.47 = 9347).
+// moneda: 'PEN' | 'USD'
+export function crearCargo({ centimos, moneda = 'PEN', email, tokenId, descripcion, reservaId, metadata = {} }) {
   return post('/charges', {
-    amount: Math.round(monto * 100),
-    currency_code: 'PEN',
+    amount: centimos,
+    currency_code: moneda,
     email,
     source_id: tokenId,
     description: descripcion,
-    metadata: { reserva_id: String(reservaId) },
+    metadata: { reserva_id: String(reservaId), ...metadata },
   });
 }
 
-// Para devolver el dinero si el cargo salió bien pero no pudimos registrar el pago
-export function reembolsar({ cargoId, monto }) {
+// Devuelve el dinero si el cargo salió bien pero no pudimos registrar el pago.
+// "centimos" va en la misma moneda del cargo original.
+export function reembolsar({ cargoId, centimos }) {
   return post('/refunds', {
-    amount: Math.round(monto * 100),
+    amount: centimos,
     charge_id: cargoId,
     reason: 'solicitud_comprador',
   });

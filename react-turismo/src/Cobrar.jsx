@@ -8,19 +8,22 @@ const ROLES = ['Recepcionista', 'Gerente'];
 const METODOS = [['Efectivo', 'Efectivo'], ['Tarjeta', 'Tarjeta'], ['QR', 'QR (Yape o Plin)']];
 const CULQI_KEY = import.meta.env.VITE_CULQI_PUBLIC_KEY;
 
-const nueva = (monto = '') => ({ metodo: 'Efectivo', medio: 'Yape', monto, recibido: '', referencia: '' });
+const nueva = (monto = '') => ({ metodo: 'Efectivo', medio: 'Yape', monto, recibido: '', referencia: '', moneda: 'PEN' });
 const fecha = (v) => new Date(v).toLocaleDateString('es-PE', { day: 'numeric', month: 'long', year: 'numeric' });
 const emailOk = (v) => /^\S+@\S+\.\S+$/.test(String(v).trim());
+// Dólares a partir de céntimos de dólar
+const dolares = (c) => new Intl.NumberFormat('en-US', { style: 'currency', currency: 'USD' }).format(c / 100);
 
 // Abre el formulario de Culqi y devuelve el ID del token de la tarjeta.
 // Los datos de la tarjeta van directo a Culqi: nunca pasan por tu servidor.
-function pedirToken({ monto, email }) {
+// "monto" va en céntimos de la moneda elegida (PEN o USD).
+function pedirToken({ monto, email, moneda }) {
   return new Promise((resolve, reject) => {
     if (!window.CulqiCheckout) return reject(new Error('No cargó el formulario de Culqi. Recarga la página.'));
     if (!CULQI_KEY) return reject(new Error('Falta VITE_CULQI_PUBLIC_KEY en el .env del front.'));
 
     const culqi = new window.CulqiCheckout(CULQI_KEY, {
-      settings: { title: 'ViajaPeru', currency: 'PEN', amount: monto }, // monto en céntimos
+      settings: { title: 'ViajaPeru', currency: moneda, amount: monto },
       client: { email },
       options: { lang: 'es', paymentMethods: { tarjeta: true, yape: false } },
     });
@@ -44,6 +47,7 @@ export default function Cobrar({ id }) {
   const [carga, setCarga] = useState('cargando');
   const [lineas, setLineas] = useState([]);
   const [correo, setCorreo] = useState('');
+  const [tc, setTc] = useState(null); // soles por 1 dólar (lo guarda el Backend)
   const [fallo, setFallo] = useState('');
   const [enviando, setEnviando] = useState(false);
   const [esperandoTarjeta, setEsperandoTarjeta] = useState(false);
@@ -63,6 +67,12 @@ export default function Cobrar({ id }) {
   };
   useEffect(() => { if (!sesion) { window.location.hash = '#/login'; return; } cargar(); }, [id, sesion]);
 
+  // Tipo de cambio: si no está configurado, simplemente no se ofrece cobrar en dólares
+  useEffect(() => {
+    if (!sesion) return;
+    pedir('/reservas/tipo-cambio').then((d) => setTc(Number(d.usd) || null)).catch(() => setTc(null));
+  }, [sesion]);
+
   if (!sesion) return null;
   if (!ROLES.includes(sesion.usuario.rol)) return <main><div className="error"><strong>Tu rol no puede cobrar reservas.</strong></div></main>;
   if (carga === 'cargando') return <main><div className="skeleton" /></main>;
@@ -73,6 +83,13 @@ export default function Cobrar({ id }) {
       <p className="pill">Pago registrado</p>
       <h1>{r.codigo} está pagada</h1>
       <p className="muted">Se cobraron {soles(recibo.total / 100)} a {r.cliente.nombres} {r.cliente.apellidos}.</p>
+      {recibo.tarjeta && (
+        <p className="muted">
+          Tarjeta: {recibo.tarjeta.moneda === 'USD'
+            ? `${dolares(Math.round(recibo.tarjeta.monto * 100))} (tipo de cambio S/ ${Number(recibo.tarjeta.tipo_cambio).toFixed(2)} por US$ 1)`
+            : soles(recibo.tarjeta.monto)}.
+        </p>
+      )}
       {recibo.vuelto > 0 && <div className="cb-vuelto-grande"><small>Entrega de vuelto</small>{soles(recibo.vuelto / 100)}</div>}
       <p className="cb-botones"><a className="btn" href={'#/comprobante/' + id}>Emitir comprobante</a><a className="btn sec" href="#/cobros">Cobrar otra reserva</a></p>
     </main>
@@ -89,11 +106,16 @@ export default function Cobrar({ id }) {
   const vuelto = lineas.reduce((s, l) => s + vueltoDe(l), 0);
   const lineaTarjeta = lineas.find((l) => l.metodo === 'Tarjeta');
   const tarjetasMultiples = lineas.filter((l) => l.metodo === 'Tarjeta').length > 1;
+  const usdCent = (soloCent) => Math.round(soloCent / tc); // céntimos de sol -> céntimos de dólar
 
   const errLinea = (l) => {
     if (cent(l.monto) <= 0) return 'Escribe un monto mayor a 0.';
     if (l.metodo === 'Efectivo' && l.recibido !== '' && cent(l.recibido) < cent(l.monto)) return 'El efectivo recibido no cubre el monto.';
     if (l.metodo === 'Tarjeta' && tarjetasMultiples) return 'Solo se admite un pago con tarjeta por operación.';
+    if (l.metodo === 'Tarjeta' && l.moneda === 'USD') {
+      if (!tc) return 'No hay tipo de cambio configurado: cobra en soles.';
+      if (usdCent(cent(l.monto)) <= 0) return 'El monto en dólares es demasiado pequeño.';
+    }
     return '';
   };
   const valido = falta === 0 && lineas.every((l) => !errLinea(l)) && (!lineaTarjeta || emailOk(correo));
@@ -107,28 +129,36 @@ export default function Cobrar({ id }) {
       let token;
       if (lineaTarjeta) {
         setEsperandoTarjeta(true);
-        token = await pedirToken({ monto: cent(lineaTarjeta.monto), email: correo.trim() });
+        let montoTarjeta = cent(lineaTarjeta.monto);
+        if (lineaTarjeta.moneda === 'USD') {
+          // Se vuelve a leer el tipo de cambio justo antes de cobrar, por si cambió
+          const t = await pedir('/reservas/tipo-cambio');
+          setTc(Number(t.usd));
+          montoTarjeta = Math.round(montoTarjeta / Number(t.usd));
+        }
+        token = await pedirToken({ monto: montoTarjeta, email: correo.trim(), moneda: lineaTarjeta.moneda });
         if (miIntento !== intento.current) return; // el recepcionista canceló mientras tanto
         setEsperandoTarjeta(false);
       }
 
-      // 2) Se envía todo al backend (él crea el cargo y registra el pago)
+      // 2) Se envía todo al backend (él convierte a dólares si hace falta, crea el cargo y registra el pago)
       setEnviando(true);
-      await pedir('/reservas/' + id + '/pagos', {
+      const resp = await pedir('/reservas/' + id + '/pagos', {
         method: 'POST',
         body: JSON.stringify({
           email: lineaTarjeta ? correo.trim() : undefined,
           pagos: lineas.map((l) => ({
             metodo: l.metodo,
             medio: l.metodo === 'QR' ? l.medio : undefined,
-            monto: cent(l.monto) / 100,
+            monto: cent(l.monto) / 100, // siempre en soles: es lo que se aplica a la reserva
             recibido: l.metodo === 'Efectivo' && l.recibido !== '' ? cent(l.recibido) / 100 : undefined,
             referencia: l.metodo !== 'Tarjeta' && l.referencia.trim() ? l.referencia.trim() : undefined,
             token: l === lineaTarjeta ? token : undefined,
+            moneda: l.metodo === 'Tarjeta' ? l.moneda : undefined,
           })),
         }),
       });
-      setRecibo({ total, vuelto });
+      setRecibo({ total, vuelto, tarjeta: resp?.tarjeta });
     } catch (ex) {
       if (miIntento !== intento.current) return;
       setFallo(ex.message || 'No pudimos registrar el pago.');
@@ -170,7 +200,21 @@ export default function Cobrar({ id }) {
                       <input value={l.referencia} onChange={setL(i, 'referencia')} placeholder="N.º de operación" />
                     </label>
                   )}
-                  {l.metodo === 'Tarjeta' && <p className="muted">Se pedirá la tarjeta al registrar el pago.</p>}
+                  {l.metodo === 'Tarjeta' && (
+                    <>
+                      <label className="fld">Moneda de la tarjeta
+                        <select value={l.moneda} onChange={setL(i, 'moneda')}>
+                          <option value="PEN">Soles (S/)</option>
+                          <option value="USD" disabled={!tc}>Dólares (US$)</option>
+                        </select>
+                      </label>
+                      <p className="muted">
+                        {l.moneda === 'USD' && tc
+                          ? `Se cobrarán ${dolares(usdCent(cent(l.monto)))} (tipo de cambio: S/ ${tc.toFixed(2)} por US$ 1). Se pedirá la tarjeta al registrar el pago.`
+                          : 'Se pedirá la tarjeta al registrar el pago.'}
+                      </p>
+                    </>
+                  )}
                 </div>
                 {vl > 0 && <p className="cb-vuelto">Vuelto: {soles(vl / 100)}</p>}
                 {err && <p className="cb-error" role="alert">{err}</p>}
