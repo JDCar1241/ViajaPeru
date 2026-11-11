@@ -10,6 +10,8 @@ import MenuUsuario from './MenuUsuario.jsx';
 import Cobros from './Cobros.jsx';
 import Cobrar from './Cobrar.jsx';
 import Comprobante from './Comprobante.jsx';
+import Registro from './Registro.jsx';
+import VereificaCorreo from './VereificaCorreo.jsx';
 
 export default function App() {
   const [hash, setHash] = useState(window.location.hash);
@@ -33,6 +35,8 @@ export default function App() {
   else if (hash.startsWith('#/cambiar-clave')) vista = <CambiarClave />;
   else if (hash.startsWith('#/paquetes')) vista = <main><Catalogo key={hash} /></main>;
   else if (hash.startsWith('#/login')) vista = <Login />;
+ else if (hash.startsWith('#/registro')) vista = <Registro />;
+  else if (hash.startsWith('#/verifica-correo')) vista = <VereificaCorreo />;
   else vista = <Inicio />;
 
   return (

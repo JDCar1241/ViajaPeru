@@ -14,6 +14,11 @@ router.post('/login', async (req, res, next) => {
     if (!clave) return fallo(res, 400, 'La contraseña no puede estar vacía.');
 
     const { data, error } = await clienteAnon().auth.signInWithPassword({ email: correo.trim(), password: clave });
+
+    // Cuenta creada pero con el correo todavía sin confirmar (clientes que se registraron por su cuenta)
+    if (error?.code === 'email_not_confirmed' || /email not confirmed/i.test(error?.message || '')) {
+      return fallo(res, 403, 'Confirma tu correo para poder iniciar sesión. Revisa tu bandeja de entrada y la carpeta de spam.');
+    }
     if (error || !data?.session) return fallo(res, 401, 'Correo o contraseña incorrectos.');
 
     const { data: perfil } = await supabase

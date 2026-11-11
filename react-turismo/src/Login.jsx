@@ -26,6 +26,7 @@ export default function Login() {
       window.location.hash = '#/paquetes';
     } catch (ex) {
       setFallo(ex.estado === 401 ? 'Correo o contraseña incorrectos. Revisa los datos e inténtalo de nuevo.'
+        : ex.estado === 403 ? ex.message // p. ej. "Confirma tu correo para poder iniciar sesión"
         : 'No pudimos iniciar sesión. Inténtalo en unos minutos.');
     } finally { setEnviando(false); }
   }
@@ -41,6 +42,7 @@ export default function Login() {
         <Campo etiqueta="Contraseña" type="password" autoComplete="current-password" value={clave}
           onChange={(e) => setClave(e.target.value)} error={err.clave} />
         <button className="vp-btn" disabled={enviando}>{enviando ? 'Ingresando…' : 'Iniciar sesión'}</button>
+        <p className="vp-sub">¿Eres cliente nuevo? <a className="vp-enlace" href="#/registro">Crear cuenta</a></p>
       </form>
     </main>
   );
