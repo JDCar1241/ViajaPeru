@@ -125,9 +125,10 @@ router.post('/:id/pagos', requiereSesion(ROLES), async (req, res, next) => {
     let tc = null;       // tipo de cambio usado (solo si se cobra en USD)
     let centimos = 0;    // monto cobrado en la moneda de la tarjeta, en céntimos enteros
     if (tarjeta) {
-      const { data: cli } = await supabase
-        .from('clientes').select('correo').eq('dni', reserva.cliente.dni).maybeSingle();
-      const email = (cli?.correo || req.body?.email || '').trim();
+      const { data: filaCli, error: eCli } = await supabase
+        .from('reservas').select('clientes(correo)').eq('id', id).maybeSingle();
+      if (eCli) throw eCli;
+      const email = (filaCli?.clientes?.correo || req.body?.email || '').trim();
       if (!email) return fallo(res, 400, 'El cliente necesita un correo para pagar con tarjeta.');
 
       centimos = Math.round(tarjeta.pago.monto * 100); // céntimos de sol
