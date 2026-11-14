@@ -1,12 +1,16 @@
 {
   "name": "backend-turismo",
   "version": "1.0.0",
-  "description": "API de ViajaPeru: catálogo y detalle de paquetes turísticos",
+  "description": "API de ViajaPeru: paquetes, reservas, cobros, comprobantes, consultas de documentos y cuentas de clientes",
   "type": "module",
   "main": "src/index.js",
+  "engines": {
+    "node": ">=18"
+  },
   "scripts": {
     "start": "node src/index.js",
-    "dev": "node --watch src/index.js"
+    "dev": "node --watch src/index.js",
+    "probar": "node probar-api.mjs"
   },
   "dependencies": {
     "@supabase/supabase-js": "^2.45.0",

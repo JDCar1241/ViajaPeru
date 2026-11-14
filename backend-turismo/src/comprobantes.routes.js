@@ -1,15 +1,13 @@
 import { Router } from 'express';
-import { supabase } from './supabase.js';
+import { supabase } from './config/supabase.js';
 import { requiereSesion, fallo } from './auth.middleware.js';
 import { generarPdf, numeroCompleto } from './comprobante.pdf.js';
+import { ROLES_CAJA as ROLES, idValido, txt, DOCUMENTOS } from './comunes.js';
 
 // Se monta en /api: define /reservas/:id/comprobante y /comprobantes/:id/pdf
 const router = Router();
-const ROLES = ['Recepcionista', 'Gerente'];
 const DOCS_BOLETA = ['DNI', 'CE', 'Pasaporte'];
 
-const idValido = (v) => { const n = Number(v); return Number.isInteger(n) && n > 0 ? n : null; };
-const txt = (v) => (typeof v === 'string' ? v.trim() : '');
 const doc = (v) => txt(v).replace(/\s+/g, '').toUpperCase();
 
 // Devuelve { error } o { comprador } (comprador puede ser null en la boleta simple)
@@ -27,8 +25,8 @@ function validarComprador(tipo, c) {
   if (!hay) return { comprador: null };
   const numero = doc(c.numero_documento);
   if (!DOCS_BOLETA.includes(c.tipo_documento)) return { error: 'El tipo de documento del comprador no es válido.' };
-  if (c.tipo_documento === 'DNI' && !/^\d{8}$/.test(numero)) return { error: 'El DNI debe tener 8 dígitos.' };
-  if (c.tipo_documento !== 'DNI' && !/^[A-Z0-9]{6,15}$/.test(numero)) return { error: 'El documento debe tener entre 6 y 15 letras o números.' };
+  const regla = DOCUMENTOS[c.tipo_documento.toUpperCase()];
+  if (!regla.re.test(numero)) return { error: `El ${regla.nombre} ${regla.msg}.` };
   const nombre = txt(c.nombre);
   if (!nombre || nombre.length > 200) return { error: 'Escribe el nombre del comprador (máximo 200 caracteres).' };
   return { comprador: { tipo_documento: c.tipo_documento, numero_documento: numero, nombre } };

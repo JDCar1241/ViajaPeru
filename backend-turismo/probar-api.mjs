@@ -147,5 +147,51 @@ await caso('ruta desconocida: 404', async () => {
   afirmar(r.status === 404, `status ${r.status}`);
 });
 
+async function enviar(metodo, ruta, cuerpo, crudo = false) {
+  const r = await fetch(BASE + ruta, {
+    method: metodo,
+    headers: { 'Content-Type': 'application/json' },
+    body: cuerpo === undefined ? undefined : (crudo ? cuerpo : JSON.stringify(cuerpo)),
+  });
+  let json = null;
+  try { json = await r.json(); } catch {}
+  return { status: r.status, cuerpo: json };
+}
+
+console.log('\nRutas protegidas (sin token deben dar 401)');
+for (const [metodo, ruta] of [
+  ['POST', '/api/auth/cambiar-clave'],
+  ['GET', '/api/reservas'],
+  ['POST', '/api/reservas'],
+  ['GET', '/api/reservas/tipo-cambio'],
+  ['GET', '/api/reservas/1'],
+  ['POST', '/api/reservas/1/pagos'],
+  ['GET', '/api/reservas/1/comprobante'],
+  ['POST', '/api/reservas/1/comprobante'],
+  ['GET', '/api/comprobantes/1/pdf'],
+  ['GET', '/api/consultas/dni/12345678'],
+  ['GET', '/api/consultas/ce/123456789'],
+  ['GET', '/api/consultas/ruc/20123456789'],
+]) {
+  await caso(`${metodo} ${ruta}`, async () => {
+    const r = await enviar(metodo, ruta, metodo === 'POST' ? {} : undefined);
+    afirmar(r.status === 401 && r.cuerpo?.mensaje, `status ${r.status}`);
+  });
+}
+
+console.log('\nErrores del cliente (4xx, nunca 500)');
+await caso('JSON mal formado: 400', async () => {
+  const r = await enviar('POST', '/api/auth/login', '{malo', true);
+  afirmar(r.status === 400 && r.cuerpo?.mensaje, `status ${r.status}`);
+});
+await caso('login sin datos: 400', async () => {
+  const r = await enviar('POST', '/api/auth/login', {});
+  afirmar(r.status === 400 && r.cuerpo?.mensaje, `status ${r.status}`);
+});
+await caso('registro sin datos: 400', async () => {
+  const r = await enviar('POST', '/api/clientes/registro', {});
+  afirmar(r.status === 400 && r.cuerpo?.mensaje, `status ${r.status}`);
+});
+
 console.log(`\nResultado: ${ok} correctas, ${fail} con falla\n`);
 process.exit(fail ? 1 : 0);

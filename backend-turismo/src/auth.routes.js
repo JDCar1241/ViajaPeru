@@ -1,17 +1,26 @@
 import { Router } from 'express';
-import { supabase, clienteAnon } from './supabase.js';
-import { requiereSesion, fallo } from './auth.middleware.js';
+import { supabase, clienteAnon } from './config/supabase.js';
+import { requiereSesion, obtenerPerfil, fallo } from './auth.middleware.js';
+import { esCorreo, claveSegura, MSG_CLAVE } from './comunes.js';
+import { crearLimitador } from './limitar.js';
 
 const router = Router();
-const esCorreo = (v) => typeof v === 'string' && /^[^\s@]+@[^\s@]+\.[^\s@]{2,}$/.test(v.trim());
-const claveSegura = (c) => typeof c === 'string' && c.length >= 8 && /[A-Z]/.test(c) && /[a-z]/.test(c) && /\d/.test(c);
+const QUINCE_MIN = 15 * 60 * 1000;
+
+// Por IP + correo, para no bloquear a toda una oficina que comparte internet
+const limitarLogin = crearLimitador({
+  ventanaMs: QUINCE_MIN,
+  maximo: 10,
+  clave: (req) => `${req.ip}:${String(req.body?.correo || '').trim().toLowerCase()}`,
+});
+const limitarCambio = crearLimitador({ ventanaMs: QUINCE_MIN, maximo: 5, clave: (req) => req.usuario.id });
 
 // POST /api/auth/login  { correo, clave } -> { token, usuario: { nombre, rol } }
-router.post('/login', async (req, res, next) => {
+router.post('/login', limitarLogin, async (req, res, next) => {
   try {
     const { correo, clave } = req.body || {};
     if (!esCorreo(correo)) return fallo(res, 400, 'El correo no tiene un formato válido.');
-    if (!clave) return fallo(res, 400, 'La contraseña no puede estar vacía.');
+    if (typeof clave !== 'string' || !clave) return fallo(res, 400, 'La contraseña no puede estar vacía.');
 
     const { data, error } = await clienteAnon().auth.signInWithPassword({ email: correo.trim(), password: clave });
 
@@ -21,8 +30,7 @@ router.post('/login', async (req, res, next) => {
     }
     if (error || !data?.session) return fallo(res, 401, 'Correo o contraseña incorrectos.');
 
-    const { data: perfil } = await supabase
-      .from('perfiles').select('nombre, rol').eq('id', data.user.id).maybeSingle();
+    const perfil = await obtenerPerfil(data.user.id);
     if (!perfil) return fallo(res, 403, 'Tu usuario no tiene un rol asignado.');
 
     res.json({ token: data.session.access_token, usuario: { nombre: perfil.nombre, rol: perfil.rol } });
@@ -30,11 +38,12 @@ router.post('/login', async (req, res, next) => {
 });
 
 // POST /api/auth/cambiar-clave  { actual, nueva }
-router.post('/cambiar-clave', requiereSesion(), async (req, res, next) => {
+router.post('/cambiar-clave', requiereSesion(), limitarCambio, async (req, res, next) => {
   try {
     const { actual, nueva } = req.body || {};
-    if (!actual) return fallo(res, 400, 'Escribe tu contraseña actual.');
-    if (!claveSegura(nueva)) return fallo(res, 400, 'La nueva contraseña debe tener 8 caracteres, mayúscula, minúscula y número.');
+    if (typeof actual !== 'string' || !actual) return fallo(res, 400, 'Escribe tu contraseña actual.');
+    if (!claveSegura(nueva)) return fallo(res, 400, MSG_CLAVE);
+    if (nueva === actual) return fallo(res, 400, 'La nueva contraseña debe ser distinta de la actual.');
 
     const { error: errActual } = await clienteAnon().auth.signInWithPassword({ email: req.usuario.correo, password: actual });
     if (errActual) return fallo(res, 401, 'La contraseña actual no es correcta.');

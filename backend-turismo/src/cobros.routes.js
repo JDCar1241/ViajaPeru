@@ -1,16 +1,15 @@
 import { Router } from 'express';
-import { supabase } from './supabase.js';
+import { supabase } from './config/supabase.js';
 import { requiereSesion, fallo } from './auth.middleware.js';
-import { crearCargo, reembolsar, ErrorPasarela } from './culqi.js';
+import { crearCargo, reembolsar, ErrorPasarela } from './config/culqi.js';
+import { ROLES_CAJA as ROLES, idValido } from './comunes.js';
 
 const router = Router();
-const ROLES = ['Recepcionista', 'Gerente'];
 const ESTADOS = ['Pendiente', 'Pagada', 'Cancelada'];
 const METODOS = ['Efectivo', 'Tarjeta', 'QR'];
 const MEDIOS_QR = ['Yape', 'Plin'];
 const MONEDAS = ['PEN', 'USD'];
 
-const idValido = (v) => { const n = Number(v); return Number.isInteger(n) && n > 0 ? n : null; };
 const dosDecimales = (n) => typeof n === 'number' && Number.isFinite(n) && Math.abs(n * 100 - Math.round(n * 100)) < 1e-6;
 
 // Tipo de cambio vigente (soles por 1 dólar), guardado en la tabla "configuracion".
@@ -151,6 +150,10 @@ router.post('/:id/pagos', requiereSesion(ROLES), async (req, res, next) => {
         });
       } catch (e) {
         if (e instanceof ErrorPasarela) {
+          if (e.detalle?.sin_respuesta) {
+            console.error('URGENTE: Culqi no respondió y el cargo podría haberse hecho. Revisa su panel. Reserva', id, e.detalle);
+            return fallo(res, 504, e.message);
+          }
           console.error('Culqi rechazó el cargo:', JSON.stringify(e.detalle));
           return fallo(res, 402, e.message);
         }

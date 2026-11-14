@@ -1,14 +1,10 @@
+import { esFechaISO } from './comunes.js';
+
 // Validación de los query params de GET /api/paquetes (acordados en TUR-75)
 const ORDENAR_POR = ['costo', 'capacidad'];
 const ORDEN = ['asc', 'desc'];
 const LIMIT_DEFECTO = 10;
 const LIMIT_MAX = 50;
-
-const esFechaISO = (v) => {
-  if (!/^\d{4}-\d{2}-\d{2}$/.test(v)) return false;
-  const d = new Date(`${v}T00:00:00Z`);
-  return !Number.isNaN(d.getTime()) && d.toISOString().slice(0, 10) === v;
-};
 
 const entero = (v, defecto) => {
   if (v === undefined || v === '') return defecto;

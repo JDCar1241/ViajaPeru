@@ -1,41 +1,18 @@
 import { Router } from 'express';
-import { supabase, clienteAnon } from './supabase.js';
+import { supabase, clienteAnon } from './config/supabase.js';
 import { fallo } from './auth.middleware.js';
 import { verificarDocumento, ErrorServicio } from './verificacion-documentos.js';
+import { DOCUMENTOS, esCorreo, claveSegura, MSG_CLAVE, telefonoInternacionalValido } from './comunes.js';
+import { crearLimitador } from './limitar.js';
 
 const router = Router();
 
-const TIPOS = ['DNI', 'CE', 'PASAPORTE'];
-const NOMBRE_DOC = { DNI: 'DNI', CE: 'carné de extranjería', PASAPORTE: 'pasaporte' };
+const TIPOS = Object.keys(DOCUMENTOS);
 const MSG_CORREO = 'El correo electrónico ya se encuentra registrado por otro usuario.';
 
-// Dígitos del número nacional por código de país. Mantener igual que PAISES en Registro.jsx
-const LARGOS = { '+51': 9, '+1': 10, '+34': 9, '+52': 10, '+54': 10, '+55': 11, '+56': 9, '+57': 10, '+58': 10, '+591': 8, '+593': 9 };
-const CODIGOS = Object.keys(LARGOS).sort((a, b) => b.length - a.length);
-
-const esCorreo = (v) => typeof v === 'string' && /^[^\s@]+@[^\s@]+\.[^\s@]{2,}$/.test(v.trim());
-const claveOk = (c) => typeof c === 'string' && c.length >= 8 && c.length <= 72 && /[A-Z]/.test(c) && /\d/.test(c);
-function telefonoValido(t) {
-  if (typeof t !== 'string' || !/^\+\d{9,15}$/.test(t)) return false;
-  const cod = CODIGOS.find((c) => t.startsWith(c));
-  return !!cod && t.length - cod.length === LARGOS[cod];
-}
-
-// Límite simple por IP: este endpoint es público y cada intento puede gastar consultas y enviar un correo.
-// En Render conviene tener app.set('trust proxy', 1) en index.js para que req.ip sea la del visitante.
-const intentos = new Map();
-function limitar(req, res, next) {
-  const ahora = Date.now();
-  const VENTANA = 15 * 60 * 1000;
-  const MAXIMO = 10;
-  if (intentos.size > 1000) intentos.clear();
-  const ip = req.ip || 'desconocida';
-  const r = intentos.get(ip);
-  if (!r || ahora - r.desde > VENTANA) { intentos.set(ip, { n: 1, desde: ahora }); return next(); }
-  if (r.n >= MAXIMO) return fallo(res, 429, 'Demasiados intentos. Espera unos minutos e inténtalo de nuevo.');
-  r.n++;
-  next();
-}
+// Este endpoint es público y cada intento puede gastar consultas y enviar un correo.
+// En Render hace falta app.set('trust proxy', 1) en index.js para que req.ip sea la del visitante.
+const limitar = crearLimitador({ ventanaMs: 15 * 60 * 1000, maximo: 10 });
 
 // Devuelve el mensaje de error si ya existe una cuenta con ese correo o ese documento
 async function duplicado(tipo, numero, correo) {
@@ -63,8 +40,8 @@ router.post('/registro', limitar, async (req, res, next) => {
 
     const correo = String(b.correo || '').trim().toLowerCase();
     if (!esCorreo(correo)) return fallo(res, 400, 'Escribe un correo válido.');
-    if (!telefonoValido(b.telefono)) return fallo(res, 400, 'La longitud del teléfono no es la adecuada para el país elegido.');
-    if (!claveOk(b.clave)) return fallo(res, 400, 'La contraseña debe tener mínimo 8 caracteres, al menos una letra mayúscula y un número.');
+    if (!telefonoInternacionalValido(b.telefono)) return fallo(res, 400, 'La longitud del teléfono no es la adecuada para el país elegido.');
+    if (!claveSegura(b.clave)) return fallo(res, 400, MSG_CLAVE);
 
     // 1) Datos del documento, con validación de formato
     let doc;
@@ -73,8 +50,7 @@ router.post('/registro', limitar, async (req, res, next) => {
       doc = { tipo_documento: tipo, mrz: b.mrz };
     } else {
       const numero = String(b.numero_documento || '').trim().toUpperCase();
-      const formato = tipo === 'DNI' ? /^\d{8}$/ : /^[A-Z0-9]{9,12}$/;
-      if (!formato.test(numero)) return fallo(res, 422, `Ingrese un ${NOMBRE_DOC[tipo]} válido.`);
+      if (!DOCUMENTOS[tipo].re.test(numero)) return fallo(res, 422, `Ingrese un ${DOCUMENTOS[tipo].nombre} válido.`);
       const nombres = String(b.nombres || '').trim();
       const paterno = String(b.apellido_paterno || '').trim();
       const materno = String(b.apellido_materno || '').trim();

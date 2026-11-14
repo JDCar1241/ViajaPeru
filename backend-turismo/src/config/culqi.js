@@ -1,5 +1,7 @@
-// src/culqi.js
+// src/config/culqi.js
 const BASE = 'https://api.culqi.com/v2';
+// Generoso a propósito: si se corta justo cuando Culqi ya cobró, queda un cargo sin pago registrado.
+const TIMEOUT_MS = 30_000;
 
 export class ErrorPasarela extends Error {
   constructor(mensajeUsuario, detalle) {
@@ -13,14 +15,24 @@ async function post(ruta, cuerpo) {
   const llave = process.env.CULQI_SECRET_KEY;
   if (!llave) throw new ErrorPasarela('Pasarela no configurada', 'Falta CULQI_SECRET_KEY');
 
-  const res = await fetch(`${BASE}${ruta}`, {
-    method: 'POST',
-    headers: {
-      'Content-Type': 'application/json',
-      Authorization: `Bearer ${llave}`,
-    },
-    body: JSON.stringify(cuerpo),
-  });
+  let res;
+  try {
+    res = await fetch(`${BASE}${ruta}`, {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json',
+        Authorization: `Bearer ${llave}`,
+      },
+      body: JSON.stringify(cuerpo),
+      signal: AbortSignal.timeout(TIMEOUT_MS),
+    });
+  } catch (e) {
+    // No sabemos si Culqi llegó a procesar la petición. "sin_respuesta" avisa a quien llama.
+    throw new ErrorPasarela(
+      'No pudimos confirmar el pago con la pasarela. No repitas el cobro hasta revisar el panel de Culqi.',
+      { sin_respuesta: true, motivo: e.name, ruta }
+    );
+  }
   const data = await res.json().catch(() => ({}));
 
   if (!res.ok || data.object === 'error') {
