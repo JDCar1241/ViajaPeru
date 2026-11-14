@@ -6,7 +6,10 @@ export const fallo = (res, estado, texto) => res.status(estado).json({ error: te
 // Un solo lugar para leer el perfil (antes estaba copiado en el middleware y en el login)
 export async function obtenerPerfil(id) {
   const { data, error } = await supabase
-    .from('perfiles').select('nombre, rol').eq('id', id).maybeSingle();
+    .from('perfiles')
+    .select('nombre, rol, nombres, apellido_paterno')
+    .eq('id', id)
+    .maybeSingle();
   if (error) throw error;
   return data;
 }

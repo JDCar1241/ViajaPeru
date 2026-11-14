@@ -1,4 +1,4 @@
-// Tipos de documento y reglas. Mantener iguales a backend/reservas.routes.js
+// Tipos de documento y reglas. Mantener iguales a backend-turismo/src/comunes.js (DOCUMENTOS)
 // (las longitudes de CE y pasaporte son supuestos: confírmalas con el equipo)
 export const TIPOS = [
   { valor: 'DNI', texto: 'DNI' },
@@ -15,9 +15,11 @@ const REGLAS = {
 export const validarDocumento = (tipo, nro) =>
   REGLAS[tipo] ? (REGLAS[tipo].re.test((nro || '').trim()) ? '' : REGLAS[tipo].msg) : 'Elige un tipo de documento.';
 
-// Solo deja caracteres válidos según el tipo mientras se escribe
+// Solo deja caracteres válidos según el tipo mientras se escribe (letras en mayúscula, como en el Backend)
 export const limpiarDocumento = (tipo, v) =>
-  tipo === 'DNI' ? v.replace(/\D/g, '').slice(0, 8) : v.replace(/[^A-Za-z0-9]/g, '').slice(0, 12);
+  tipo === 'DNI'
+    ? v.replace(/\D/g, '').slice(0, 8)
+    : v.replace(/[^A-Za-z0-9]/g, '').slice(0, 12).toUpperCase();
 
 // Edad cumplida en la fecha de la salida
 export function edadAl(nacimiento, referencia) {

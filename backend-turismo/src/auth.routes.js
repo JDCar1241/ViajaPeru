@@ -15,7 +15,7 @@ const limitarLogin = crearLimitador({
 });
 const limitarCambio = crearLimitador({ ventanaMs: QUINCE_MIN, maximo: 5, clave: (req) => req.usuario.id });
 
-// POST /api/auth/login  { correo, clave } -> { token, usuario: { nombre, rol } }
+// POST /api/auth/login  { correo, clave } -> { token, usuario: { nombre, rol, nombres, apellidos } }
 router.post('/login', limitarLogin, async (req, res, next) => {
   try {
     const { correo, clave } = req.body || {};
@@ -33,7 +33,15 @@ router.post('/login', limitarLogin, async (req, res, next) => {
     const perfil = await obtenerPerfil(data.user.id);
     if (!perfil) return fallo(res, 403, 'Tu usuario no tiene un rol asignado.');
 
-    res.json({ token: data.session.access_token, usuario: { nombre: perfil.nombre, rol: perfil.rol } });
+    res.json({
+      token: data.session.access_token,
+      usuario: {
+        nombre: perfil.nombre,
+        rol: perfil.rol,
+        nombres: perfil.nombres || undefined,
+        apellidos: perfil.apellido_paterno || undefined,
+      },
+    });
   } catch (e) { next(e); }
 });
 
