@@ -1,0 +1,385 @@
+
+/* =================================
+   VIAJAPERÚ - VISTA DETALLE
+================================= */
+
+.detalle-page {
+  width: 100%;
+  max-width: 1120px;
+  margin: 0 auto;
+  padding: 24px 0 70px;
+  color: #0F1B2D;
+}
+
+/* Volver al catálogo */
+
+.detalle-page .volver {
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+  margin-bottom: 22px;
+  color: #1456D6;
+  font-size: 14px;
+  font-weight: 700;
+  text-decoration: none;
+  transition: color .2s;
+}
+
+.detalle-page .volver:hover {
+  color: #0A2540;
+}
+
+/* Imagen principal */
+
+.detalle-portada {
+  width: 100%;
+  overflow: hidden;
+  border-radius: 22px;
+  background: #EAF2FF;
+  box-shadow: 0 12px 35px rgba(10, 37, 64, .10);
+}
+
+.detalle-page .hero {
+  display: block;
+  width: 100%;
+  height: 420px;
+  object-fit: cover;
+  border-radius: 22px;
+  background: #EAF2FF;
+}
+
+.detalle-page .detalle-sin-foto {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  color: #55657A;
+  font-weight: 600;
+}
+
+/* Título y precio */
+
+.detalle-page .detalle-titulo {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 28px;
+  margin: 35px 0 42px;
+}
+
+.detalle-etiqueta {
+  display: inline-block;
+  margin-bottom: 10px;
+  color: #1456D6;
+  font-size: 11px;
+  font-weight: 800;
+  letter-spacing: 2px;
+}
+
+.detalle-page .detalle-titulo h1 {
+  margin: 0 0 12px;
+  color: #0A2540;
+  font-size: clamp(28px, 4vw, 42px);
+  line-height: 1.12;
+}
+
+.detalle-page .detalle-titulo p {
+  margin: 0;
+  font-size: 15px;
+}
+
+.detalle-precio {
+  flex-shrink: 0;
+  min-width: 190px;
+  padding: 19px 24px;
+  border: 1px solid #DCE4EF;
+  border-radius: 17px;
+  background: #F7FAFF;
+  text-align: center;
+}
+
+.detalle-precio small {
+  display: block;
+  margin-bottom: 5px;
+  color: #55657A;
+  font-size: 12px;
+  font-weight: 600;
+}
+
+.detalle-precio strong {
+  color: #1456D6;
+  font-size: 27px;
+  font-weight: 800;
+}
+
+/* Distribución de columnas */
+
+.detalle-page .detalle-cols {
+  display: grid;
+  grid-template-columns: minmax(0, 1.15fr) minmax(320px, .85fr);
+  gap: 38px;
+  align-items: start;
+}
+
+/* Paneles */
+
+.detalle-page .detalle-panel {
+  margin-bottom: 28px;
+  padding: 25px;
+  border: 1px solid #E1E8F2;
+  border-radius: 18px;
+  background: #fff;
+  box-shadow: 0 5px 20px rgba(10, 37, 64, .045);
+}
+
+.detalle-titulo-seccion {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  margin-bottom: 22px;
+}
+
+.detalle-titulo-seccion > span {
+  display: flex;
+  width: 34px;
+  height: 34px;
+  flex-shrink: 0;
+  align-items: center;
+  justify-content: center;
+  border-radius: 10px;
+  background: #EAF2FF;
+  color: #1456D6;
+  font-size: 12px;
+  font-weight: 800;
+}
+
+.detalle-page .detalle-titulo-seccion h2 {
+  margin: 0;
+  color: #0A2540;
+  font-size: 18px;
+  font-weight: 800;
+}
+
+/* Itinerario */
+
+.detalle-page .timeline {
+  margin: 0;
+  padding: 0;
+}
+
+.detalle-page .timeline li {
+  gap: 18px;
+  padding: 0 0 24px 22px;
+  border-left: 2px solid #DCE8FA;
+}
+
+.detalle-page .timeline li::before {
+  left: -7px;
+  top: 3px;
+  width: 12px;
+  height: 12px;
+  background: #1456D6;
+  border: 2px solid #fff;
+  box-shadow: 0 0 0 2px #DCE8FA;
+}
+
+.detalle-page .timeline li:last-child {
+  padding-bottom: 0;
+}
+
+.detalle-page .timeline strong {
+  min-width: 65px;
+  color: #1456D6;
+  font-size: 14px;
+}
+
+.detalle-page .timeline span {
+  color: #35465B;
+  font-size: 14px;
+  line-height: 1.65;
+}
+
+/* Aclaraciones */
+
+.detalle-page .detalle-aclaraciones {
+  margin: 0;
+  color: #55657A;
+  font-size: 14px;
+  line-height: 1.8;
+}
+
+/* Salidas */
+
+.detalle-page .detalle-descripcion {
+  margin: -8px 0 20px;
+  font-size: 13px;
+  line-height: 1.6;
+}
+
+.detalle-lista-salidas {
+  display: flex;
+  flex-direction: column;
+  gap: 13px;
+}
+
+.detalle-salida {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+  padding: 17px;
+  border: 1px solid #E1E8F2;
+  border-radius: 13px;
+  background: #FAFCFF;
+  transition: border-color .2s, transform .2s;
+}
+
+.detalle-salida:hover {
+  border-color: #AFC8F5;
+  transform: translateY(-2px);
+}
+
+.detalle-salida-info {
+  display: flex;
+  flex-direction: column;
+  gap: 5px;
+}
+
+.detalle-salida-info small {
+  color: #718096;
+  font-size: 11px;
+  font-weight: 600;
+}
+
+.detalle-salida-info strong {
+  color: #0A2540;
+  font-size: 15px;
+}
+
+.detalle-cupos {
+  color: #16834A;
+  font-size: 12px;
+  font-weight: 700;
+}
+
+.detalle-agotado {
+  color: #C24141;
+  font-size: 12px;
+  font-weight: 700;
+}
+
+/* Botón reservar */
+
+.detalle-page .detalle-btn {
+  min-height: 40px;
+  padding: 0 19px;
+  border-radius: 10px;
+  background: #1456D6;
+  color: white;
+  font-size: 13px;
+  font-weight: 700;
+  transition: background .2s, transform .2s;
+}
+
+.detalle-page .detalle-btn:hover:not(:disabled) {
+  background: #0F44AD;
+  transform: translateY(-1px);
+}
+
+.detalle-page .detalle-btn:disabled {
+  opacity: .45;
+  cursor: not-allowed;
+}
+
+.detalle-vacio {
+  padding: 20px;
+  border-radius: 12px;
+  background: #F7FAFF;
+  font-size: 14px;
+  text-align: center;
+}
+
+/* Adaptación para tablets */
+
+@media (max-width: 860px) {
+  .detalle-page .detalle-cols {
+    grid-template-columns: 1fr;
+    gap: 5px;
+  }
+
+  .detalle-page .hero {
+    height: 330px;
+  }
+}
+
+/* Adaptación para celulares */
+
+@media (max-width: 600px) {
+  .detalle-page {
+    padding: 15px 0 45px;
+  }
+
+  .detalle-page .hero {
+    height: 230px;
+    border-radius: 15px;
+  }
+
+  .detalle-portada {
+    border-radius: 15px;
+  }
+
+  .detalle-page .detalle-titulo {
+    flex-direction: column;
+    align-items: stretch;
+    gap: 18px;
+    margin: 25px 0 30px;
+  }
+
+  .detalle-page .detalle-titulo h1 {
+    font-size: 29px;
+  }
+
+  .detalle-precio {
+    width: 100%;
+    text-align: left;
+  }
+
+  .detalle-page .detalle-panel {
+    padding: 19px 16px;
+    border-radius: 14px;
+  }
+
+  .detalle-page .detalle-cols {
+    gap: 0;
+  }
+
+  .detalle-salida {
+    align-items: flex-start;
+    flex-direction: column;
+  }
+
+  .detalle-page .detalle-btn {
+    width: 100%;
+  }
+}
+
+.detalle-precio-usd {
+  display: block;
+  margin-top: 6px;
+  color: #16834a;
+  font-size: 21px;
+  font-weight: 800;
+}
+
+.detalle-tipo-cambio {
+  display: block;
+  margin-top: 6px;
+  color: #718096;
+  font-size: 11px;
+}
+
+.detalle-tipo-cambio-info {
+  display: block;
+  margin-top: 8px;
+  color: #718096;
+  font-size: 11px;
+}

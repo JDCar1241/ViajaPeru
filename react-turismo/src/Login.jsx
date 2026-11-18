@@ -2,7 +2,7 @@ import { useState } from 'react';
 import './reservas.css';
 import Campo from './Campo.jsx';
 import { esCorreo } from './validaciones.js';
-import { iniciarSesion } from './api-reservas.js';
+import { iniciarSesion } from './api.js';
 import { setSesion } from './auth.js';
 
 export default function Login() {
@@ -22,12 +22,14 @@ export default function Login() {
     setEnviando(true);
     try {
       const datos = await iniciarSesion(correo.trim(), clave);
-      setSesion(datos); // { token, usuario: { nombre, rol } }
+      setSesion(datos); // { token, usuario: { nombre, rol, nombres?, apellidos? } }
       window.location.hash = '#/paquetes';
     } catch (ex) {
-      setFallo(ex.estado === 401 ? 'Correo o contraseña incorrectos. Revisa los datos e inténtalo de nuevo.'
-        : ex.estado === 403 ? ex.message // p. ej. "Confirma tu correo para poder iniciar sesión"
-        : 'No pudimos iniciar sesión. Inténtalo en unos minutos.');
+      // 401 = datos incorrectos. Los demás mensajes vienen del servidor
+      // (p. ej. "Confirma tu correo…", "Demasiados intentos…", "No pudimos conectar…").
+      setFallo(ex.estado === 401
+        ? 'Correo o contraseña incorrectos. Revisa los datos e inténtalo de nuevo.'
+        : ex.message || 'No pudimos iniciar sesión. Inténtalo en unos minutos.');
     } finally { setEnviando(false); }
   }
 

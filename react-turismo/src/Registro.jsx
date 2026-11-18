@@ -2,13 +2,13 @@ import { useState } from 'react';
 import './reservas.css';
 import './registro.css';
 import Campo from './Campo.jsx';
-import { esCorreo, noVacio } from './validaciones.js';
-import { pedir, ultima } from './api-reservas.js';
+import { esCorreo, noVacio, criteriosClave, claveValida, CLAVE_MAX } from './validaciones.js';
+import { pedir, ultima } from './api.js';
 import { TIPOS, validarDocumento, limpiarDocumento } from './documentos.js';
 import { analizarMrz, limpiarMrz } from './mrz.js';
 
 // Dígitos del número nacional por código de país (sin el código).
-// Son valores de referencia: confírmalos con el equipo y ajusta los que haga falta.
+// Mantener igual que LARGOS en backend-turismo/src/comunes.js
 const PAISES = [
   { cod: '+51', nombre: 'Perú', largo: 9 },
   { cod: '+1', nombre: 'Estados Unidos / Canadá', largo: 10 },
@@ -29,13 +29,6 @@ const TIPOS_UI = TIPOS.map((t) => (typeof t === 'string'
   ? { valor: t, texto: t }
   : { valor: t.valor ?? t.value, texto: t.texto ?? t.label ?? t.valor ?? t.value }));
 
-// Política de contraseña: mínimo 8 caracteres, una mayúscula y un número
-const REGLAS_CLAVE = [
-  ['Mínimo 8 caracteres', (c) => c.length >= 8],
-  ['Una mayúscula', (c) => /[A-Z]/.test(c)],
-  ['Un número', (c) => /\d/.test(c)],
-];
-const claveOk = (c) => REGLAS_CLAVE.every(([, ok]) => ok(c));
 const fechaLarga = (iso) => new Date(iso + 'T00:00:00Z').toLocaleDateString('es-PE', { day: 'numeric', month: 'long', year: 'numeric', timeZone: 'UTC' });
 const NOMBRE_DOC = { DNI: 'DNI', CE: 'carné de extranjería', PASAPORTE: 'pasaporte' };
 
@@ -83,7 +76,7 @@ export default function Registro() {
     if (!new RegExp(`^\\d{${pais.largo}}$`).test(f.telefono)) {
       n.telefono = `El teléfono de ${pais.nombre} debe tener ${pais.largo} dígitos.`;
     }
-    if (!claveOk(f.clave)) n.clave = 'La contraseña debe tener mínimo 8 caracteres, al menos una letra mayúscula y un número.';
+    if (!claveValida(f.clave)) n.clave = 'La contraseña debe tener mínimo 8 caracteres, al menos una letra mayúscula y un número.';
     if (f.clave !== f.clave2) n.clave2 = 'Las contraseñas no coinciden.';
     return n;
   }
@@ -216,11 +209,13 @@ export default function Registro() {
           <fieldset className="rg-seccion">
             <legend><span className="rg-num">3</span>Contraseña</legend>
             <div className="rg-grid">
-              <Campo etiqueta="Contraseña" type={ver ? 'text' : 'password'} autoComplete="new-password" value={f.clave} onChange={set('clave')} error={err.clave} />
-              <Campo etiqueta="Confirmar contraseña" type={ver ? 'text' : 'password'} autoComplete="new-password" value={f.clave2} onChange={set('clave2')} error={err.clave2} />
+              <Campo etiqueta="Contraseña" type={ver ? 'text' : 'password'} autoComplete="new-password" maxLength={CLAVE_MAX}
+                value={f.clave} onChange={set('clave')} error={err.clave} />
+              <Campo etiqueta="Confirmar contraseña" type={ver ? 'text' : 'password'} autoComplete="new-password" maxLength={CLAVE_MAX}
+                value={f.clave2} onChange={set('clave2')} error={err.clave2} />
             </div>
             <ul className="rg-reglas">
-              {REGLAS_CLAVE.map(([t, ok]) => <li key={t} className={ok(f.clave) ? 'ok' : ''}>{t}</li>)}
+              {criteriosClave.map((c) => <li key={c.texto} className={c.ok(f.clave) ? 'ok' : ''}>{c.texto}</li>)}
             </ul>
             <label className="rg-ver">
               <input type="checkbox" checked={ver} onChange={(e) => setVer(e.target.checked)} /> Mostrar contraseñas

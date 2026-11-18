@@ -1,5 +1,5 @@
 import './reservas.css';
-import { ultima } from './api-reservas.js';
+import { ultima } from './api.js';
 
 export default function VerificaCorreo() {
   const correo = ultima.correoRegistro;

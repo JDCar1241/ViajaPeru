@@ -1,56 +1,127 @@
+
 import { analizarMrz } from './mrz.js';
 import { consultarPersona } from './factiliza.js';
 import { DOCUMENTOS } from './comunes.js';
 
-// Verifica la identidad de quien se registra:
-//   DNI y carné de extranjería -> consulta a Factiliza (RENIEC y Migraciones) y compara los nombres
-//   Pasaporte                  -> validación de la zona MRZ (mrz.js). No certifica autenticidad.
-
-// registro.routes.js sigue importándolo desde aquí
 export { ErrorServicio } from './factiliza.js';
 
-// Sin tildes, en mayúsculas y solo letras (la Ñ pasa a N, igual que en la MRZ)
-const normalizar = (t) => String(t || '').normalize('NFD').replace(/[\u0300-\u036f]/g, '').toUpperCase().replace(/[^A-Z]+/g, ' ').trim();
-// Compara sin importar el orden de las palabras
-const conjunto = (t) => normalizar(t).split(' ').filter(Boolean).sort().join(' ');
+const normalizar = (t) =>
+  String(t || '')
+    .normalize('NFD')
+    .replace(/[\u0300-\u036f]/g, '')
+    .toUpperCase()
+    .replace(/[^A-Z]+/g, ' ')
+    .trim();
 
-// Devuelve { ok: true, persona } o { ok: false, motivo }. Lanza ErrorServicio si el servicio externo falla.
+const conjunto = (t) =>
+  normalizar(t)
+    .split(' ')
+    .filter(Boolean)
+    .sort()
+    .join(' ');
+
 export async function verificarDocumento(doc) {
-  if (doc.tipo_documento === 'PASAPORTE') {
-    const r = analizarMrz(doc.mrz?.[0], doc.mrz?.[1]);
-    if (r.incompleto) return { ok: false, motivo: 'Escribe las dos líneas de la zona MRZ (44 caracteres cada una).' };
-    if (!r.ok) return { ok: false, motivo: r.errores[0] };
+  const tipo = String(doc?.tipo_documento || '').toUpperCase();
+  const numero = String(doc?.numero_documento || '').trim().toUpperCase();
+
+  // Verificación de pasaporte mediante MRZ
+  if (tipo === 'PASAPORTE') {
+    const r = analizarMrz(doc?.mrz?.[0], doc?.mrz?.[1]);
+
+    if (r.incompleto) {
+      return {
+        ok: false,
+        motivo: 'Escribe las dos líneas de la zona MRZ (44 caracteres cada una).',
+      };
+    }
+
+    if (!r.ok) {
+      return { ok: false, motivo: r.errores[0] };
+    }
+
     const d = r.datos;
+
     return {
       ok: true,
       persona: {
         tipo_documento: 'PASAPORTE',
         numero_documento: d.numero,
         nombres: d.nombres,
-        apellido_paterno: d.apellidos, // la MRZ no separa paterno y materno
+        apellido_paterno: d.apellidos,
         apellido_materno: null,
         fecha_nacimiento: d.fecha_nacimiento,
       },
     };
   }
 
-  // DNI o carné de extranjería
-  const invalido = { ok: false, motivo: `Ingrese un ${DOCUMENTOS[doc.tipo_documento].nombre} válido.` };
-  const oficial = await consultarPersona(doc.tipo_documento, doc.numero_documento);
-  if (!oficial) return invalido;
+  // Validar tipo de documento
+  const configuracion = DOCUMENTOS[tipo];
 
-  const mismosNombres = conjunto(doc.nombres) === conjunto(oficial.nombres);
-  const mismosApellidos = conjunto(`${doc.apellido_paterno} ${doc.apellido_materno || ''}`) === conjunto(oficial.apellidos);
-  if (!mismosNombres || !mismosApellidos) return invalido;
+  if (!configuracion) {
+    return {
+      ok: false,
+      motivo: 'El tipo de documento no es válido.',
+    };
+  }
+
+  // Validar formato del DNI
+  if (tipo === 'DNI' && !/^\d{8}$/.test(numero)) {
+    return {
+      ok: false,
+      motivo: 'El DNI debe contener exactamente 8 dígitos.',
+    };
+  }
+
+  if (!numero) {
+    return {
+      ok: false,
+      motivo: 'Ingresa el número de documento.',
+    };
+  }
+
+  // Consultar datos oficiales
+  const oficial = await consultarPersona(tipo, numero);
+
+  if (!oficial) {
+    return {
+      ok: false,
+      motivo: 'Factiliza no encontró el documento. Verifica el número ingresado.',
+    };
+  }
+
+  // Comparar nombres
+  const mismosNombres =
+    conjunto(doc.nombres) === conjunto(oficial.nombres);
+
+  if (!mismosNombres) {
+    return {
+      ok: false,
+      motivo: 'Los nombres no coinciden con los datos oficiales.',
+    };
+  }
+
+  // Comparar apellidos
+  const apellidosIngresados = conjunto(
+    `${doc.apellido_paterno || ''} ${doc.apellido_materno || ''}`
+  );
+
+  const apellidosOficiales = conjunto(oficial.apellidos);
+
+  if (apellidosIngresados !== apellidosOficiales) {
+    return {
+      ok: false,
+      motivo: 'Los apellidos no coinciden con los datos oficiales.',
+    };
+  }
 
   return {
     ok: true,
     persona: {
-      tipo_documento: doc.tipo_documento,
-      numero_documento: doc.numero_documento,
-      nombres: doc.nombres.trim(),
-      apellido_paterno: doc.apellido_paterno.trim(),
-      apellido_materno: doc.apellido_materno?.trim() || null,
+      tipo_documento: tipo,
+      numero_documento: numero,
+      nombres: String(doc.nombres || '').trim(),
+      apellido_paterno: String(doc.apellido_paterno || '').trim(),
+      apellido_materno: String(doc.apellido_materno || '').trim() || null,
       fecha_nacimiento: null,
     },
   };

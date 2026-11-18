@@ -54,7 +54,7 @@ router.post('/cambiar-clave', requiereSesion(), limitarCambio, async (req, res, 
     if (nueva === actual) return fallo(res, 400, 'La nueva contraseña debe ser distinta de la actual.');
 
     const { error: errActual } = await clienteAnon().auth.signInWithPassword({ email: req.usuario.correo, password: actual });
-    if (errActual) return fallo(res, 401, 'La contraseña actual no es correcta.');
+    if (errActual) return fallo(res, 422, 'La contraseña actual no es correcta.');
 
     const { error } = await supabase.auth.admin.updateUserById(req.usuario.id, { password: nueva });
     if (error) return fallo(res, 400, 'No se pudo cambiar la contraseña. Prueba con otra.');
