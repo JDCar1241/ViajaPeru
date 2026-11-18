@@ -13,6 +13,8 @@ import Comprobante from './Comprobante.jsx';
 import Registro from './Registro.jsx';
 import VereificaCorreo from './VereificaCorreo.jsx';
 
+const ANIO = new Date().getFullYear();
+
 export default function App() {
   const [hash, setHash] = useState(window.location.hash);
   useEffect(() => {
@@ -35,7 +37,7 @@ export default function App() {
   else if (hash.startsWith('#/cambiar-clave')) vista = <CambiarClave />;
   else if (hash.startsWith('#/paquetes')) vista = <main><Catalogo key={hash} /></main>;
   else if (hash.startsWith('#/login')) vista = <Login />;
- else if (hash.startsWith('#/registro')) vista = <Registro />;
+  else if (hash.startsWith('#/registro')) vista = <Registro />;
   else if (hash.startsWith('#/verifica-correo')) vista = <VereificaCorreo />;
   else vista = <Inicio />;
 
@@ -49,7 +51,7 @@ export default function App() {
         </nav>
       </header>
       {vista}
-      <footer>© {new Date().getFullYear()} ViajaPeru · Paquetes turísticos</footer>
+      <footer>© {ANIO} ViajaPeru · Paquetes turísticos</footer>
     </>
   );
 }

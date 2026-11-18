@@ -6,7 +6,10 @@ let sesion = leer();
 export const getSesion = () => sesion;
 export function setSesion(s) {
   sesion = s;
-  try { s ? sessionStorage.setItem(KEY, JSON.stringify(s)) : sessionStorage.removeItem(KEY); } catch {}
+  try {
+    if (s) sessionStorage.setItem(KEY, JSON.stringify(s));
+    else sessionStorage.removeItem(KEY);
+  } catch { /* sin almacenamiento disponible: la sesión vive solo en memoria */ }
   window.dispatchEvent(new Event('vp-sesion'));
 }
 export function cerrarSesion() { setSesion(null); window.location.hash = '#/login'; }
