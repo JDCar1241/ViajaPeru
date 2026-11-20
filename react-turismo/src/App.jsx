@@ -9,6 +9,7 @@ import Reserva from './paginas/reservas/Reserva.jsx';
 import Confirmacion from './paginas/reservas/Confirmacion.jsx';
 import MenuUsuario from './componentes/MenuUsuario.jsx';
 import Cobros from './paginas/personal/Cobros.jsx';
+import PagosYape from './paginas/personal/PagosYape.jsx';
 import Cobrar from './paginas/personal/Cobrar.jsx';
 import Comprobante from './paginas/personal/Comprobante.jsx';
 import Registro from './paginas/publico/Registro.jsx';
@@ -92,6 +93,8 @@ export default function App() {
     vista = <Cobrar key={hash} id={cob[1]} />;
   } else if (cmp) {
     vista = <Comprobante key={hash} id={cmp[1]} />;
+  } else if (hash.startsWith('#/pagos-yape')) {
+    vista = <PagosYape />;
   } else if (hash.startsWith('#/cobros')) {
     vista = <Cobros />;
   } else if (hash.startsWith('#/reserva-confirmada')) {

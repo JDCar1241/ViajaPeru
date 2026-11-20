@@ -86,6 +86,13 @@ export default function MiReserva() {
   const [cancelando, setCancelando] = useState(false);
   const [confirmarCancelacion, setConfirmarCancelacion] = useState(false);
 
+  // Yape (HU-006): el cliente yapea y envía el N° de operación; el personal lo verifica.
+  const [yape, setYape] = useState(null);        // { numero, titular, qr_url }
+  const [yapeError, setYapeError] = useState('');
+  const [operacion, setOperacion] = useState('');
+  const [enviandoYape, setEnviandoYape] = useState(false);
+  const [copiado, setCopiado] = useState(false);
+
   // Identifica el intento de pago vigente. Si la persona cierra el formulario de Culqi,
   // Culqi no avisa: con "Cancelar" se invalida el intento y se libera el botón.
   const intento = useRef(0);
@@ -208,14 +215,61 @@ export default function MiReserva() {
   const pagada = estadoActual === 'pagada';
   const cancelada = estadoActual === 'cancelada';
 
+  const yapeEstado = reserva?.yape?.estado;
+  const yapeEnVerificacion = pendiente && yapeEstado === 'En verificación';
+
   function seleccionarMetodo(metodo) {
     setMetodoPago(metodo);
     setError('');
     setMensaje('');
 
-    // Yape funcionará únicamente en soles.
+    // Yape funciona únicamente en soles.
     if (metodo === 'Yape') {
       setMonedaPago('PEN');
+      if (!yape) {
+        setYapeError('');
+        pedir('/portal-cliente/yape')
+          .then(setYape)
+          .catch((e) => setYapeError(e.message || 'El pago con Yape no está disponible en este momento.'));
+      }
+    }
+  }
+
+  async function copiarNumero() {
+    try {
+      await navigator.clipboard.writeText(yape.numero);
+      setCopiado(true);
+      setTimeout(() => setCopiado(false), 2000);
+    } catch {
+      /* sin permiso para copiar: el número sigue visible */
+    }
+  }
+
+  async function enviarYape(e) {
+    e.preventDefault();
+    setError('');
+    setMensaje('');
+
+    const numero = operacion.replace(/\s+/g, '');
+    if (!/^\d{4,20}$/.test(numero)) {
+      setError('Escribe el número de operación que aparece en tu Yape (solo números).');
+      return;
+    }
+
+    try {
+      setEnviandoYape(true);
+      const r = await pedir(`/portal-cliente/reservas/${id}/yape`, {
+        method: 'POST',
+        body: JSON.stringify({ numero_operacion: numero, usar_saldo: usarSaldo }),
+      });
+      setMensaje(r?.mensaje || 'Recibimos tu pago por Yape. Lo verificaremos pronto.');
+      setOperacion('');
+      setUsarSaldo(false);
+      await cargarReserva();
+    } catch (err) {
+      setError(err.message || 'No pudimos registrar tu pago por Yape.');
+    } finally {
+      setEnviandoYape(false);
     }
   }
 
@@ -238,11 +292,6 @@ export default function MiReserva() {
 
     if (!reserva || !pendiente) {
       setError('Esta reserva ya no está pendiente de pago.');
-      return;
-    }
-
-    if (metodoPago === 'Yape' && !soloSaldo) {
-      setError('Yape estará disponible próximamente. Todavía no se ha configurado tu QR personal.');
       return;
     }
 
@@ -569,8 +618,28 @@ export default function MiReserva() {
                   <small>Importe base en soles peruanos</small>
                 </div>
 
-                {pendiente ? (
+                {yapeEnVerificacion ? (
+                  <div className="mr-pago-completo mr-yape-verificando">
+                    <span>⏳</span>
+                    <strong>Pago en verificación</strong>
+                    <p>
+                      Recibimos tu Yape por <b>{moneda(reserva.yape.monto)}</b> (operación N° {reserva.yape.numero_operacion}).
+                      {Number(reserva.yape.saldo_a_usar) > 0 && <> Al confirmarlo se usarán {moneda(reserva.yape.saldo_a_usar)} de tu saldo a favor.</>}
+                    </p>
+                    <small className="mr-nota-cancelar">
+                      Lo verificaremos en el horario de atención y te enviaremos la boleta por correo.
+                      Tus cupos están apartados mientras tanto.
+                    </small>
+                  </div>
+                ) : pendiente ? (
                   <div className="mr-pago">
+                    {yapeEstado === 'Rechazado' && (
+                      <div className="mr-alerta mr-alerta-error" role="alert">
+                        No pudimos confirmar tu pago por Yape (operación N° {reserva.yape.numero_operacion}).
+                        {reserva.yape.motivo_rechazo && <> Motivo: {reserva.yape.motivo_rechazo}</>} Puedes volver a intentarlo.
+                      </div>
+                    )}
+
                     <h3>Realiza tu pago</h3>
                     <p>Selecciona tu medio de pago y moneda.</p>
 
@@ -592,8 +661,8 @@ export default function MiReserva() {
                             <small>
                               Se usarán {moneda(saldoAplicado / 100)}.{' '}
                               {soloSaldo
-                                ? 'Tu saldo cubre todo el importe: no necesitas tarjeta.'
-                                : `Pagarás ${moneda(restoSoles / 100)} con tarjeta.`}
+                                ? 'Tu saldo cubre todo el importe: no necesitas tarjeta ni Yape.'
+                                : `Pagarás ${moneda(restoSoles / 100)} con ${metodoPago === 'Yape' ? 'Yape' : 'tarjeta'}.`}
                             </small>
                           )}
                         </span>
@@ -645,7 +714,7 @@ export default function MiReserva() {
                       >
                         <span>📱</span>
                         <strong>Yape</strong>
-                        <small>Próximamente</small>
+                        <small>Yapea y envía tu N° de operación</small>
                       </button>
                     </div>
 
@@ -740,17 +809,59 @@ export default function MiReserva() {
                     )}
 
                     {metodoPago === 'Yape' && (
-                      <div className="mr-aviso-yape">
-                        <span>📱</span>
-                        <strong>Yape estará disponible próximamente</strong>
-                        <p>
-                          Estamos preparando esta opción para que puedas
-                          pagar directamente mediante tu QR personal.
-                        </p>
-                        <small>
-                          Por ahora puedes pagar tu reserva con tarjeta.
-                        </small>
-                      </div>
+                      yapeError ? (
+                        <div className="mr-aviso-yape">
+                          <span>📱</span>
+                          <strong>{yapeError}</strong>
+                          <small>Por ahora puedes pagar tu reserva con tarjeta.</small>
+                        </div>
+                      ) : !yape ? (
+                        <p className="mr-nota-cancelar">Cargando datos de Yape…</p>
+                      ) : (
+                        <form className="mr-yape" onSubmit={enviarYape}>
+                          <div className="mr-cobro">
+                            <span>Importe a yapear</span>
+                            <strong>{moneda(restoSoles / 100)}</strong>
+                          </div>
+
+                          {yape.qr_url && (
+                            <img className="mr-yape-qr" src={yape.qr_url} alt={`QR de Yape ${yape.numero}`} />
+                          )}
+
+                          <ol className="mr-yape-pasos">
+                            <li>
+                              Yapea <b>exactamente {moneda(restoSoles / 100)}</b> al número
+                              <span className="mr-yape-numero">
+                                <b>{yape.numero.replace(/(\d{3})(\d{3})(\d{3})/, '$1 $2 $3')}</b>
+                                <button type="button" onClick={copiarNumero}>{copiado ? '¡Copiado!' : 'Copiar'}</button>
+                              </span>
+                              {yape.titular && <small>A nombre de {yape.titular}</small>}
+                            </li>
+                            <li>En la constancia de Yape busca el <b>N° de operación</b>.</li>
+                            <li>Escríbelo aquí y envíalo. Verificaremos el pago y te enviaremos la boleta por correo.</li>
+                          </ol>
+
+                          <label htmlFor="mr-operacion">N° de operación</label>
+                          <input
+                            id="mr-operacion"
+                            inputMode="numeric"
+                            autoComplete="off"
+                            maxLength={24}
+                            placeholder="Ej. 12345678"
+                            value={operacion}
+                            onChange={(e) => setOperacion(e.target.value.replace(/[^\d\s]/g, ''))}
+                            disabled={enviandoYape}
+                          />
+
+                          <button type="submit" className="mr-boton mr-boton-pagar" disabled={enviandoYape || !operacion.trim()}>
+                            {enviandoYape ? 'Enviando…' : 'Ya yapeé, enviar →'}
+                          </button>
+
+                          <small className="mr-seguridad">
+                            Tu reserva queda pendiente hasta que confirmemos el pago.
+                          </small>
+                        </form>
+                      )
                     )}
                     </>
                     )}

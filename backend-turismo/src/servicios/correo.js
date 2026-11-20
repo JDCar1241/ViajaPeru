@@ -1,7 +1,7 @@
 
 import { Resend } from 'resend';
 
-// Envío de correos (bienvenida, cancelación de reserva).
+// Envío de correos (bienvenida, cancelación de reserva, comprobantes con el PDF adjunto).
 // Proveedor según las variables de entorno:
 //   BREVO_API_KEY  -> Brevo (gratis, 300 correos/día, envía a CUALQUIER destinatario
 //                     con un remitente verificado, sin necesidad de dominio propio)
@@ -24,7 +24,7 @@ function separarRemitente(texto) {
   return { name: 'ViajaPerú', email: t };
 }
 
-async function enviarConBrevo({ destinatario, asunto, html }) {
+async function enviarConBrevo({ destinatario, asunto, html, adjuntos }) {
   if (!process.env.EMAIL_FROM) {
     throw new Error('Falta EMAIL_FROM (el remitente verificado en Brevo).');
   }
@@ -43,6 +43,9 @@ async function enviarConBrevo({ destinatario, asunto, html }) {
         to: [{ email: destinatario }],
         subject: asunto,
         htmlContent: html,
+        ...(adjuntos.length
+          ? { attachment: adjuntos.map((a) => ({ name: a.nombre, content: a.contenido.toString('base64') })) }
+          : {}),
       }),
       signal: AbortSignal.timeout(TIMEOUT_MS),
     });
@@ -67,7 +70,7 @@ async function enviarConBrevo({ destinatario, asunto, html }) {
 // el servidor completo no arrancaría cuando falta RESEND_API_KEY.
 let resend = null;
 
-async function enviarConResend({ destinatario, asunto, html }) {
+async function enviarConResend({ destinatario, asunto, html, adjuntos }) {
   resend ??= new Resend(process.env.RESEND_API_KEY);
 
   const { data, error } = await resend.emails.send({
@@ -75,6 +78,9 @@ async function enviarConResend({ destinatario, asunto, html }) {
     to: [destinatario],
     subject: asunto,
     html,
+    ...(adjuntos.length
+      ? { attachments: adjuntos.map((a) => ({ filename: a.nombre, content: a.contenido })) }
+      : {}),
   });
 
   if (error) {
@@ -86,13 +92,15 @@ async function enviarConResend({ destinatario, asunto, html }) {
   return data;
 }
 
-export async function enviarCorreo({ destinatario, asunto, html }) {
+// adjuntos: [{ nombre: 'B001-00000001.pdf', contenido: Buffer }]  (opcional)
+export async function enviarCorreo({ destinatario, asunto, html, adjuntos = [] }) {
   if (!destinatario || !asunto || !html) {
     throw new Error('Faltan datos para enviar el correo.');
   }
 
-  if (process.env.BREVO_API_KEY) return enviarConBrevo({ destinatario, asunto, html });
-  if (process.env.RESEND_API_KEY) return enviarConResend({ destinatario, asunto, html });
+  const datos = { destinatario, asunto, html, adjuntos };
+  if (process.env.BREVO_API_KEY) return enviarConBrevo(datos);
+  if (process.env.RESEND_API_KEY) return enviarConResend(datos);
 
   throw new Error('Falta configurar BREVO_API_KEY o RESEND_API_KEY.');
 }

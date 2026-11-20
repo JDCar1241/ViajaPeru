@@ -787,3 +787,67 @@
   font-size: 11px;
   text-align: center;
 }
+
+
+/* HU-006 · Pago con Yape (verificado por el personal) */
+.mr-yape {
+  display: grid;
+  gap: 10px;
+}
+
+.mr-yape-qr {
+  width: 200px;
+  max-width: 100%;
+  justify-self: center;
+  border-radius: 12px;
+  border: 1px solid #e3e8ef;
+}
+
+.mr-yape-pasos {
+  margin: 4px 0;
+  padding-left: 20px;
+  display: grid;
+  gap: 8px;
+  font-size: 14px;
+  color: #3e4f64;
+}
+
+.mr-yape-pasos small {
+  display: block;
+  color: #6b7a8c;
+}
+
+.mr-yape-numero {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  margin-top: 6px;
+  padding: 8px 12px;
+  border-radius: 10px;
+  background: #f3ecfb;
+  color: #5b2a86;
+  font-size: 20px;
+  letter-spacing: .04em;
+}
+
+.mr-yape-numero button {
+  margin-left: auto;
+  padding: 6px 12px;
+  border: 1px solid #c9b3e3;
+  border-radius: 999px;
+  background: #fff;
+  color: #5b2a86;
+  font: inherit;
+  font-size: 13px;
+  font-weight: 600;
+  letter-spacing: 0;
+  cursor: pointer;
+}
+
+.mr-yape-verificando {
+  background: #fff7e6;
+}
+
+.mr-yape-verificando strong {
+  color: #9a6200 !important;
+}

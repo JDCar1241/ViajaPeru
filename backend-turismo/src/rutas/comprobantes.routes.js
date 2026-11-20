@@ -2,7 +2,8 @@ import { Router } from 'express';
 import { supabase } from '../config/supabase.js';
 import { requiereSesion, fallo } from '../middlewares/auth.middleware.js';
 import { generarPdf, numeroCompleto } from '../servicios/comprobante.pdf.js';
-import { ROLES_CAJA as ROLES, idValido, txt, DOCUMENTOS } from '../utils/comunes.js';
+import { enviarEnSegundoPlano, enviarComprobantePorCorreo } from '../servicios/comprobante-digital.js';
+import { ROLES_CAJA as ROLES, idValido, txt, DOCUMENTOS, esCorreo } from '../utils/comunes.js';
 
 // Se monta en /api: define /reservas/:id/comprobante y /comprobantes/:id/pdf
 const router = Router();
@@ -55,6 +56,10 @@ router.post('/reservas/:id/comprobante', requiereSesion(ROLES), async (req, res,
       if (m.includes('DATOS_INVALIDOS') || error.code === '23514') return fallo(res, 400, 'Los datos del comprobante no son válidos.');
       throw error;
     }
+
+    // HU-007: el comprobante digital se envía al correo del cliente (en segundo plano)
+    enviarEnSegundoPlano(data.id);
+
     res.status(201).json(data);
   } catch (e) { next(e); }
 });
@@ -69,6 +74,25 @@ router.get('/reservas/:id/comprobante', requiereSesion(ROLES), async (req, res, 
     if (!data) return fallo(res, 404, 'Esta reserva aún no tiene comprobante.');
     res.json(data);
   } catch (e) { next(e); }
+});
+
+// POST /api/comprobantes/:id/enviar   { correo? }  -> reenvía el PDF (por defecto al correo del titular)
+router.post('/comprobantes/:id/enviar', requiereSesion(ROLES), async (req, res, next) => {
+  try {
+    const id = idValido(req.params.id);
+    if (!id) return fallo(res, 400, 'El comprobante no es válido.');
+
+    const correo = txt(req.body?.correo);
+    if (correo && !esCorreo(correo)) return fallo(res, 400, 'El correo no es válido.');
+
+    const r = await enviarComprobantePorCorreo(id, correo || null);
+    if (!r.enviado) return fallo(res, 400, 'La reserva no tiene correo: escribe uno para enviar el comprobante.');
+    res.json({ mensaje: 'Comprobante enviado por correo.' });
+  } catch (e) {
+    if (/no encontrado/i.test(e.message || '')) return fallo(res, 404, 'El comprobante no existe.');
+    if (/correo/i.test(e.message || '')) return fallo(res, 502, 'No se pudo enviar el correo. Inténtalo de nuevo.');
+    next(e);
+  }
 });
 
 // GET /api/comprobantes/:id/pdf  -> archivo PDF

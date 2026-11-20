@@ -152,6 +152,15 @@ export default function MenuUsuario() {
               >
                 Cobrar reservas
               </a>
+
+              <a
+                role="menuitem"
+                className="vp-item"
+                href="#/pagos-yape"
+                onClick={cerrar}
+              >
+                Pagos con Yape
+              </a>
             </>
           )}
 
