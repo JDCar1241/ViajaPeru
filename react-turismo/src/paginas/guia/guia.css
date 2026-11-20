@@ -1,0 +1,100 @@
+/* HU-011 · Pantallas del Guía (pensadas primero para el celular) */
+
+.gu-pagina h1 { margin-bottom: 4px; }
+
+.gu-filtros {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: flex-end;
+  gap: 12px;
+  margin: 20px 0 24px;
+}
+
+.gu-salidas { display: grid; gap: 12px; }
+
+.gu-salida {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  gap: 16px;
+  padding: 16px 18px;
+  border: 1px solid #DCE4EF;
+  border-radius: 14px;
+  background: #fff;
+  color: inherit;
+  text-decoration: none;
+}
+.gu-salida:hover { border-color: #1456D6; }
+.gu-salida > div { display: grid; gap: 3px; }
+.gu-fecha { color: #1456D6; font-size: 13px; font-weight: 700; text-transform: capitalize; }
+.gu-guia { font-size: 12px; color: #55657A; }
+
+.gu-contador {
+  display: grid;
+  justify-items: center;
+  min-width: 78px;
+  padding: 10px 12px;
+  border-radius: 12px;
+  background: #EAF2FF;
+  color: #0A2540;
+  font-size: 22px;
+  font-weight: 800;
+}
+.gu-contador small { font-size: 11px; font-weight: 600; color: #55657A; }
+.gu-contador--ok { background: #e3f7ed; color: #16824b; }
+
+/* Resumen de la salida */
+.gu-resumen {
+  margin: 16px 0;
+  padding: 16px;
+  border-radius: 14px;
+  background: #0A2540;
+  color: #fff;
+  position: sticky;
+  top: 0;
+  z-index: 2;
+}
+.gu-resumen__cifras { display: grid; grid-template-columns: repeat(3, 1fr); text-align: center; }
+.gu-resumen__cifras strong { display: block; font-size: 28px; line-height: 1.1; }
+.gu-resumen__cifras span { font-size: 12px; opacity: .8; }
+.gu-barra { height: 8px; margin-top: 12px; border-radius: 99px; background: rgba(255,255,255,.2); overflow: hidden; }
+.gu-barra i { display: block; height: 100%; background: #4ADE80; transition: width .25s ease; }
+
+.gu-buscador { display: grid; max-width: 420px; margin-bottom: 12px; }
+
+/* Lista de pasajeros */
+.gu-lista { list-style: none; margin: 0; padding: 0; display: grid; gap: 10px; }
+
+.gu-pasajero {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  gap: 12px;
+  padding: 14px 16px;
+  border: 1px solid #DCE4EF;
+  border-left: 5px solid #F5B547;
+  border-radius: 12px;
+  background: #fff;
+}
+.gu-pasajero--presente { border-left-color: #16824b; background: #f4fbf7; }
+.gu-pasajero__datos { display: grid; gap: 2px; min-width: 0; }
+.gu-pasajero__datos span { font-size: 13px; }
+.gu-pasajero__accion { display: grid; justify-items: end; gap: 6px; flex-shrink: 0; }
+.gu-pasajero__accion .btn { min-width: 110px; min-height: 44px; }
+
+.gu-estado {
+  padding: 3px 10px;
+  border-radius: 99px;
+  background: #fff2d9;
+  color: #a66c08;
+  font-size: 12px;
+  font-weight: 700;
+}
+.gu-estado--presente { background: #e3f7ed; color: #16824b; }
+
+@media (max-width: 600px) {
+  .gu-filtros .fld { flex: 1 1 140px; }
+  .gu-pasajero { flex-direction: column; align-items: stretch; }
+  .gu-pasajero__accion { grid-template-columns: 1fr auto; align-items: center; justify-items: stretch; }
+  .gu-pasajero__accion .btn { width: 100%; }
+}

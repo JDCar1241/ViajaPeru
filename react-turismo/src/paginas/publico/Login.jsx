@@ -35,7 +35,9 @@ export default function Login() {
     try {
       const datos = await iniciarSesion(correo.trim(), clave);
       setSesion(datos); // { token, usuario: { nombre, rol, nombres?, apellidos? } }
-      window.location.hash = volver || '#/paquetes';
+      // El Guía entra directo a sus salidas del día (HU-011)
+      const inicio = datos?.usuario?.rol === 'Guia' ? '#/guia' : '#/paquetes';
+      window.location.hash = volver || inicio;
     } catch (ex) {
       // 401 = datos incorrectos. Los demás mensajes vienen del servidor
       // (p. ej. "Confirma tu correo…", "Demasiados intentos…", "No pudimos conectar…").

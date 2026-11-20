@@ -11,6 +11,7 @@ import consultas from './rutas/consultas.routes.js';
 import comprobantes from './rutas/comprobantes.routes.js';
 import registro from './rutas/registro.routes.js';
 import portalCliente from './rutas/portal-cliente.routes.js';
+import guia from './rutas/guia.routes.js';
 
 import { fallo } from './middlewares/auth.middleware.js';
 
@@ -54,6 +55,9 @@ app.use('/api/clientes', registro);
 // Portal exclusivo para usuarios con rol Cliente.
 // Sus rutas verifican la propiedad de las reservas y comprobantes.
 app.use('/api/portal-cliente', portalCliente);
+
+// Guías turísticos: salidas asignadas y control de asistencia (HU-011).
+app.use('/api/guia', guia);
 
 // Ruta no encontrada.
 app.use((_req, res) => {

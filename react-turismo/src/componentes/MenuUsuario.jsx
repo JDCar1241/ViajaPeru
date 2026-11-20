@@ -55,6 +55,7 @@ export default function MenuUsuario() {
   const corto = nombreCorto(usuario);
   const esCliente = rol === 'Cliente';
   const esPersonal = PUEDEN_RESERVAR.includes(rol);
+  const veSalidas = rol === 'Guia' || rol === 'Administrador'; // HU-011
 
   const cerrar = () => setAbierto(false);
 
@@ -152,6 +153,17 @@ export default function MenuUsuario() {
                 Cobrar reservas
               </a>
             </>
+          )}
+
+          {veSalidas && (
+            <a
+              role="menuitem"
+              className="vp-item"
+              href="#/guia"
+              onClick={cerrar}
+            >
+              {rol === 'Guia' ? 'Mis salidas' : 'Asistencia de salidas'}
+            </a>
           )}
 
           <a
