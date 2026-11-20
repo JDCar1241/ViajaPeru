@@ -3,7 +3,8 @@ import { Router } from 'express';
 import { supabase } from '../config/supabase.js';
 import { requiereSesion, fallo } from '../middlewares/auth.middleware.js';
 import { validarReserva, paraRpc } from '../validaciones/reservas.validacion.js';
-import { verificarDocumento } from '../servicios/verificacion-documentos.js';
+import { verificarDocumento, ErrorServicio } from '../servicios/verificacion-documentos.js';
+import { crearLimitador } from '../middlewares/limitar.js';
 import { enviarCorreo } from '../servicios/correo.js';
 import {
   txt,
@@ -26,6 +27,14 @@ const telefonoValido = (telefono) =>
   esTelefonoPeru(telefono) || telefonoInternacionalValido(telefono);
 
 const MONEDAS = ['PEN', 'USD'];
+
+// Cada intento de pago llega a Culqi: se limita por cuenta para frenar pruebas masivas de tarjetas.
+const limitarPago = crearLimitador({
+  ventanaMs: 15 * 60 * 1000,
+  maximo: 8,
+  clave: (req) => req.usuario.id,
+  mensaje: 'Demasiados intentos de pago. Espera unos minutos antes de volver a intentarlo.',
+});
 
 const dosDecimales = (n) =>
   typeof n === 'number' &&
@@ -151,7 +160,18 @@ async function comprobarPropiedad(req, reservaId) {
 }
 
 // Verifica identidad del titular o acompañante.
+// Devuelve { ok } | { error, estado } (estado = código HTTP a responder).
 async function verificarIdentidad(persona, quien) {
+  const tipo = txt(persona.tipo_documento).toUpperCase();
+
+  // El pasaporte solo se puede validar con su MRZ, que las reservas en línea no piden.
+  if (tipo === 'PASAPORTE') {
+    return {
+      estado: 400,
+      error: `El pasaporte ${quien} no se puede verificar en línea. Usa DNI o carné de extranjería, o reserva en nuestras oficinas.`,
+    };
+  }
+
   const apellidos = txt(persona.apellidos)
     .trim()
     .split(/\s+/)
@@ -160,25 +180,42 @@ async function verificarIdentidad(persona, quien) {
   const apellidoPaterno = apellidos.shift() || '';
   const apellidoMaterno = apellidos.join(' ');
 
-  const resultado = await verificarDocumento({
-    tipo_documento: txt(persona.tipo_documento).toUpperCase(),
-    numero_documento: txt(
-      persona.nro_documento ??
-      persona.numero_documento ??
-      persona.dni
-    ).toUpperCase(),
-    nombres: txt(persona.nombres),
-    apellido_paterno: apellidoPaterno,
-    apellido_materno: apellidoMaterno,
-  });
+  let resultado;
 
-  if (!resultado.ok) {
-    return {
-      error: `No se pudo verificar la identidad ${quien}: ${resultado.motivo}`,
-    };
+  try {
+    resultado = await verificarDocumento({
+      tipo_documento: tipo,
+      numero_documento: txt(
+        persona.nro_documento ??
+        persona.numero_documento ??
+        persona.dni
+      ).toUpperCase(),
+      nombres: txt(persona.nombres),
+      apellido_paterno: apellidoPaterno,
+      apellido_materno: apellidoMaterno,
+    });
+  } catch (e) {
+    // Factiliza caído o sin llave: no es culpa del usuario.
+    if (e instanceof ErrorServicio) {
+      console.error(`Verificación de identidad ${quien} falló:`, e.message);
+      return {
+        estado: 503,
+        error: 'No pudimos verificar los documentos en este momento. Inténtalo de nuevo en unos minutos.',
+      };
+    }
+    throw e;
   }
 
-  return { ok: true };
+  if (resultado.ok) return { ok: true };
+
+  // Muchos menores de edad no figuran en la fuente: sin resultado no es motivo para rechazarlos.
+  // Si SÍ figuran y los nombres no coinciden, se rechaza igual que a un adulto.
+  if (resultado.noEncontrado && persona.es_menor) return { ok: true };
+
+  return {
+    estado: 400,
+    error: `No se pudo verificar la identidad ${quien}: ${resultado.motivo}`,
+  };
 }
 
 // GET /api/portal-cliente/saldo
@@ -344,7 +381,7 @@ router.get('/reservas/:id/tipo-cambio', async (req, res, next) => {
 });
 
 // POST /api/portal-cliente/reservas/:id/pagar
-router.post('/reservas/:id/pagar', async (req, res, next) => {
+router.post('/reservas/:id/pagar', limitarPago, async (req, res, next) => {
   let cargoId = null;
   let centimos = 0;
 
@@ -755,7 +792,7 @@ router.post('/reservas', async (req, res, next) => {
       );
 
       if (identidadTitular.error) {
-        return fallo(res, 400, identidadTitular.error);
+        return fallo(res, identidadTitular.estado, identidadTitular.error);
       }
     }
 
@@ -767,7 +804,7 @@ router.post('/reservas', async (req, res, next) => {
       );
 
       if (identidad.error) {
-        return fallo(res, 400, identidad.error);
+        return fallo(res, identidad.estado, identidad.error);
       }
     }
 
@@ -1010,7 +1047,8 @@ router.post('/reservas/:id/cancelar', async (req, res, next) => {
       try {
         await enviarCorreo({
           destinatario: correo,
-          asunto: `Cancelación confirmada - Reserva ${codigo}`,
+          // El asunto es texto plano: va sin escapar (escaparHtml solo aplica al cuerpo HTML).
+          asunto: `Cancelación confirmada - Reserva ${detalle?.codigo || id}`,
           html,
         });
       } catch (e) {

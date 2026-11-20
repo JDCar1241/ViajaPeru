@@ -85,6 +85,7 @@ export async function verificarDocumento(doc) {
   if (!oficial) {
     return {
       ok: false,
+      noEncontrado: true, // la fuente no tiene el documento (pasa con menores de edad)
       motivo: 'Factiliza no encontró el documento. Verifica el número ingresado.',
     };
   }

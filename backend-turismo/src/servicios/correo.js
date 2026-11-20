@@ -1,10 +1,13 @@
 
 import { Resend } from 'resend';
 
-const resend = new Resend(process.env.RESEND_API_KEY);
-
 const REMITENTE =
   process.env.EMAIL_FROM || 'ViajaPerú <onboarding@resend.dev>';
+
+// El cliente se crea recién al enviar el primer correo.
+// "new Resend()" lanza un error si no hay llave, y si se creara al importar el archivo
+// el servidor completo no arrancaría cuando falta RESEND_API_KEY.
+let resend = null;
 
 export async function enviarCorreo({ destinatario, asunto, html }) {
   if (!process.env.RESEND_API_KEY) {
@@ -14,6 +17,8 @@ export async function enviarCorreo({ destinatario, asunto, html }) {
   if (!destinatario || !asunto || !html) {
     throw new Error('Faltan datos para enviar el correo.');
   }
+
+  resend ??= new Resend(process.env.RESEND_API_KEY);
 
   const { data, error } = await resend.emails.send({
     from: REMITENTE,

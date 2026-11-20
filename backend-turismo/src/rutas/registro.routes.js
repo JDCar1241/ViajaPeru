@@ -16,13 +16,16 @@ const limitar = crearLimitador({ ventanaMs: 15 * 60 * 1000, maximo: 10 });
 
 // Devuelve el mensaje de error si ya existe una cuenta con ese correo o ese documento
 async function duplicado(tipo, numero, correo) {
+  // Si la consulta falla se lanza el error: tratarla como "sin duplicado" dejaría pasar cuentas repetidas.
   if (correo) {
-    const { data } = await supabase.from('perfiles').select('id').eq('correo', correo).maybeSingle();
+    const { data, error } = await supabase.from('perfiles').select('id').eq('correo', correo).maybeSingle();
+    if (error) throw error;
     if (data) return MSG_CORREO;
   }
   if (numero) {
-    const { data } = await supabase.from('perfiles').select('id')
+    const { data, error } = await supabase.from('perfiles').select('id')
       .eq('tipo_documento', tipo).eq('numero_documento', numero).maybeSingle();
+    if (error) throw error;
     if (data) return 'Ya existe una cuenta con este documento.';
   }
   return null;
