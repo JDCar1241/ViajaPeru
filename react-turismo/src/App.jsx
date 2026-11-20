@@ -1,23 +1,23 @@
 
 import { useEffect, useState } from 'react';
-import Inicio from './Inicio';
-import Catalogo from './Catalogo';
-import Detalle from './Detalle';
-import Login from './Login';
-import CambiarClave from './CambiarClave.jsx';
-import Reserva from './Reserva.jsx';
-import Confirmacion from './Confirmacion.jsx';
-import MenuUsuario from './MenuUsuario.jsx';
-import Cobros from './Cobros.jsx';
-import Cobrar from './Cobrar.jsx';
-import Comprobante from './Comprobante.jsx';
-import Registro from './Registro.jsx';
-import VerificaCorreo from './VerificaCorreo.jsx';
-import MiCuenta from './cliente/MiCuenta.jsx';
-import MisReservas from './cliente/MisReservas.jsx';
-import MiReserva from './cliente/MiReserva.jsx';
-import { useSesion } from './auth.js';
-import ComprobanteCliente from './cliente/ComprobanteCliente.jsx';
+import Inicio from './paginas/publico/Inicio';
+import Catalogo from './paginas/publico/Catalogo';
+import Detalle from './paginas/publico/Detalle';
+import Login from './paginas/publico/Login';
+import CambiarClave from './paginas/publico/CambiarClave.jsx';
+import Reserva from './paginas/reservas/Reserva.jsx';
+import Confirmacion from './paginas/reservas/Confirmacion.jsx';
+import MenuUsuario from './componentes/MenuUsuario.jsx';
+import Cobros from './paginas/personal/Cobros.jsx';
+import Cobrar from './paginas/personal/Cobrar.jsx';
+import Comprobante from './paginas/personal/Comprobante.jsx';
+import Registro from './paginas/publico/Registro.jsx';
+import VerificaCorreo from './paginas/publico/VerificaCorreo.jsx';
+import MiCuenta from './paginas/cliente/MiCuenta.jsx';
+import MisReservas from './paginas/cliente/MisReservas.jsx';
+import MiReserva from './paginas/cliente/MiReserva.jsx';
+import { useSesion } from './servicios/auth.js';
+import ComprobanteCliente from './paginas/cliente/ComprobanteCliente.jsx';
 
 const ANIO = new Date().getFullYear();
 

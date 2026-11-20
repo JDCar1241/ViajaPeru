@@ -3,16 +3,16 @@ import 'dotenv/config';
 import express from 'express';
 import cors from 'cors';
 
-import paquetes from './paquetes.routes.js';
-import auth from './auth.routes.js';
-import reservas from './reservas.routes.js';
-import cobros from './cobros.routes.js';
-import consultas from './consultas.routes.js';
-import comprobantes from './comprobantes.routes.js';
-import registro from './registro.routes.js';
-import portalCliente from './portal-cliente.routes.js';
+import paquetes from './rutas/paquetes.routes.js';
+import auth from './rutas/auth.routes.js';
+import reservas from './rutas/reservas.routes.js';
+import cobros from './rutas/cobros.routes.js';
+import consultas from './rutas/consultas.routes.js';
+import comprobantes from './rutas/comprobantes.routes.js';
+import registro from './rutas/registro.routes.js';
+import portalCliente from './rutas/portal-cliente.routes.js';
 
-import { fallo } from './auth.middleware.js';
+import { fallo } from './middlewares/auth.middleware.js';
 
 const app = express();
 

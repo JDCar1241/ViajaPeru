@@ -10,13 +10,14 @@
   "scripts": {
     "start": "node src/index.js",
     "dev": "node --watch src/index.js",
-    "probar": "node probar-api.mjs"
+    "probar": "node scripts/probar-api.mjs"
   },
   "dependencies": {
     "@supabase/supabase-js": "^2.45.0",
     "cors": "^2.8.5",
     "dotenv": "^16.4.5",
     "express": "^4.19.2",
-    "pdfkit": "^0.20.2"
+    "pdfkit": "^0.20.2",
+    "resend": "^6.39.0"
   }
 }
