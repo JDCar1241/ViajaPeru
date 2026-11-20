@@ -396,139 +396,6 @@ async function saldoDisponible(clienteId) {
   return Number(data?.saldo_disponible || 0);
 }
 
-// =============================================
-// YAPE (HU-006): el cliente yapea y envía el N° de operación; el personal lo verifica.
-// Requiere supabase/10-yape-manual.sql
-// =============================================
-
-const faltaSqlYape = (error) => ['PGRST202', 'PGRST205', '42P01', '42883'].includes(error?.code);
-
-async function configYape() {
-  const { data, error } = await supabase
-    .from('configuracion')
-    .select('clave, valor')
-    .in('clave', ['yape_numero', 'yape_titular', 'yape_qr_url']);
-  if (error) throw error;
-
-  const c = Object.fromEntries((data || []).map((f) => [f.clave, txt(f.valor)]));
-  if (!/^9\d{8}$/.test(c.yape_numero || '')) return null;
-
-  return {
-    numero: c.yape_numero,
-    titular: c.yape_titular || null,
-    qr_url: /^https:\/\//.test(c.yape_qr_url || '') ? c.yape_qr_url : null,
-  };
-}
-
-// Última solicitud de Yape de la reserva (o null)
-async function ultimaSolicitudYape(reservaId) {
-  const { data, error } = await supabase
-    .from('solicitudes_yape')
-    .select('id, numero_operacion, monto, saldo_a_usar, estado, motivo_rechazo, creado_en, revisado_en')
-    .eq('reserva_id', reservaId)
-    .order('creado_en', { ascending: false })
-    .limit(1)
-    .maybeSingle();
-  if (error) {
-    if (faltaSqlYape(error)) return null;
-    throw error;
-  }
-  return data;
-}
-
-async function yapeEnVerificacion(reservaId) {
-  return (await ultimaSolicitudYape(reservaId))?.estado === 'En verificación';
-}
-
-// Cada envío crea trabajo para el personal: se limita por cuenta.
-const limitarYape = crearLimitador({
-  ventanaMs: 15 * 60 * 1000,
-  maximo: 6,
-  clave: (req) => req.usuario.id,
-  mensaje: 'Demasiados envíos seguidos. Espera unos minutos antes de volver a intentarlo.',
-});
-
-// GET /api/portal-cliente/yape  -> { numero, titular, qr_url }
-router.get('/yape', async (_req, res, next) => {
-  try {
-    const yape = await configYape();
-    if (!yape) return fallo(res, 503, 'El pago con Yape no está disponible en este momento.');
-    res.set('Cache-Control', 'no-store');
-    res.json(yape);
-  } catch (e) { next(e); }
-});
-
-// POST /api/portal-cliente/reservas/:id/yape   { numero_operacion, usar_saldo?: boolean }
-// No cobra nada: registra que el cliente yapeó, para que el personal lo verifique.
-router.post('/reservas/:id/yape', limitarYape, async (req, res, next) => {
-  try {
-    const id = idValido(req.params.id);
-    if (!id) return fallo(res, 400, 'El número de reserva no es válido.');
-
-    const operacion = txt(req.body?.numero_operacion).replace(/\s+/g, '');
-    if (!/^\d{4,20}$/.test(operacion)) {
-      return fallo(res, 400, 'Escribe el número de operación que aparece en tu Yape (solo números).');
-    }
-    const usarSaldo = req.body?.usar_saldo === true;
-
-    if (!(await configYape())) return fallo(res, 503, 'El pago con Yape no está disponible en este momento.');
-
-    const propiedad = await comprobarPropiedad(req, id);
-    if (propiedad.error) return fallo(res, 404, propiedad.error);
-
-    const { data: reserva, error: errReserva } = await supabase
-      .from('reservas')
-      .select('id, estado, total, cliente_id')
-      .eq('id', id)
-      .maybeSingle();
-    if (errReserva) throw errReserva;
-    if (!reserva) return fallo(res, 404, 'No se encontró la reserva.');
-    if (reserva.estado !== 'Pendiente') return fallo(res, 409, 'Esta reserva ya no está pendiente de pago.');
-
-    // Mismo cálculo que con tarjeta: se usa todo el saldo posible y el resto se yapea.
-    const totalCent = Math.round(Number(reserva.total) * 100);
-    const clienteSaldo = propiedad.usuario.clienteId;
-    let saldoCent = 0;
-    if (usarSaldo) {
-      saldoCent = Math.min(Math.round((await saldoDisponible(clienteSaldo)) * 100), totalCent);
-      if (saldoCent <= 0) return fallo(res, 400, 'No tienes saldo a favor disponible.');
-    }
-    const restoCent = totalCent - saldoCent;
-    if (restoCent <= 0) {
-      return fallo(res, 400, 'Tu saldo cubre todo el importe: paga con tu saldo a favor, sin Yape.');
-    }
-
-    const { data, error } = await supabase
-      .from('solicitudes_yape')
-      .insert({
-        reserva_id: id,
-        // El saldo se descuenta del cliente de la cuenta; si no tiene registro, del titular.
-        cliente_id: saldoCent > 0 ? clienteSaldo : (clienteSaldo || reserva.cliente_id),
-        numero_operacion: operacion,
-        monto: restoCent / 100,
-        saldo_a_usar: saldoCent / 100,
-        creado_por: req.usuario.id,
-      })
-      .select('id, numero_operacion, monto, saldo_a_usar, estado, creado_en')
-      .single();
-
-    if (error) {
-      if (error.code === '23505') {
-        return (error.message || '').includes('ux_yape_operacion')
-          ? fallo(res, 409, 'Ese número de operación ya fue registrado. Revisa el número en tu Yape.')
-          : fallo(res, 409, 'Ya enviaste un pago por Yape para esta reserva y lo estamos verificando.');
-      }
-      if (faltaSqlYape(error)) return fallo(res, 503, 'El pago con Yape no está disponible en este momento.');
-      throw error;
-    }
-
-    res.status(201).json({
-      mensaje: 'Recibimos tu pago por Yape. Lo verificaremos y te enviaremos la boleta por correo.',
-      yape: data,
-    });
-  } catch (e) { next(e); }
-});
-
 // Culqi limita cada pago con Yape a S/ 2,000.
 const YAPE_MAX_CENT = 200_000;
 
@@ -595,11 +462,6 @@ router.post('/reservas/:id/pagar', limitarPago, async (req, res, next) => {
 
     if (reserva.estado !== 'Pendiente') {
       return fallo(res, 409, 'Esta reserva ya no está pendiente de pago.');
-    }
-
-    // Si ya envió un pago por Yape que se está verificando, no se cobra dos veces.
-    if (await yapeEnVerificacion(id)) {
-      return fallo(res, 409, 'Ya enviaste un pago por Yape para esta reserva y lo estamos verificando.');
     }
 
     const total = Number(reserva.total);
@@ -899,8 +761,6 @@ router.get('/reservas/:id', async (req, res, next) => {
       pagada_en: datosReserva.pagada_en,
       saldo_utilizado: Number(datosReserva.saldo_utilizado || 0),
       saldo_acreditado: Number(datosReserva.saldo_acreditado || 0),
-      // Último pago enviado por Yape (en verificación, confirmado o rechazado)
-      yape: await ultimaSolicitudYape(id),
     });
   } catch (e) {
     next(e);

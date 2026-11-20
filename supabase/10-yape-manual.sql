@@ -1,4 +1,5 @@
 -- ViajaPeru · HU-006 Realizar pago virtual: pago con Yape verificado por el personal
+-- REEMPLAZADO: el pago manual con Yape se quitó; ver 11-quitar-yape-manual.sql (Yape automático con Culqi).
 -- Ejecutar completo en Supabase > SQL Editor, DESPUÉS de 09-catalogo.sql. Se puede repetir sin problema.
 --
 -- Con un Yape personal no hay API que avise del pago. Flujo:

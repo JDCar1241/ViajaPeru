@@ -3,7 +3,7 @@ import { enviarCorreo } from './correo.js';
 import { generarPdf, numeroCompleto } from './comprobante.pdf.js';
 
 // HU-007 · Enviar comprobante digital.
-// - Pago en línea (tarjeta, saldo o Yape confirmado): se emite la BOLETA automáticamente a nombre
+// - Pago en línea (tarjeta, Yape por Culqi o saldo): se emite la BOLETA automáticamente a nombre
 //   del titular y se envía por correo con el PDF adjunto.
 // - Cobro presencial: el personal elige boleta o factura; al emitirla también se envía por correo.
 // Nada de esto debe hacer fallar el pago: los errores se registran y el comprobante se puede

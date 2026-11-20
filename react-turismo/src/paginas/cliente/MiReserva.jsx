@@ -209,9 +209,6 @@ export default function MiReserva() {
   const pagada = estadoActual === 'pagada';
   const cancelada = estadoActual === 'cancelada';
 
-  const yapeEstado = reserva?.yape?.estado;
-  const yapeEnVerificacion = pendiente && yapeEstado === 'En verificación';
-
   function seleccionarMetodo(metodo) {
     setMetodoPago(metodo);
     setError('');
@@ -575,28 +572,8 @@ export default function MiReserva() {
                   <small>Importe base en soles peruanos</small>
                 </div>
 
-                {yapeEnVerificacion ? (
-                  <div className="mr-pago-completo mr-yape-verificando">
-                    <span>⏳</span>
-                    <strong>Pago en verificación</strong>
-                    <p>
-                      Recibimos tu Yape por <b>{moneda(reserva.yape.monto)}</b> (operación N° {reserva.yape.numero_operacion}).
-                      {Number(reserva.yape.saldo_a_usar) > 0 && <> Al confirmarlo se usarán {moneda(reserva.yape.saldo_a_usar)} de tu saldo a favor.</>}
-                    </p>
-                    <small className="mr-nota-cancelar">
-                      Lo verificaremos en el horario de atención y te enviaremos la boleta por correo.
-                      Tus cupos están apartados mientras tanto.
-                    </small>
-                  </div>
-                ) : pendiente ? (
+                {pendiente ? (
                   <div className="mr-pago">
-                    {yapeEstado === 'Rechazado' && (
-                      <div className="mr-alerta mr-alerta-error" role="alert">
-                        No pudimos confirmar tu pago por Yape (operación N° {reserva.yape.numero_operacion}).
-                        {reserva.yape.motivo_rechazo && <> Motivo: {reserva.yape.motivo_rechazo}</>} Puedes volver a intentarlo.
-                      </div>
-                    )}
-
                     <h3>Realiza tu pago</h3>
                     <p>Selecciona tu medio de pago y moneda.</p>
 

@@ -706,39 +706,6 @@
   text-align: center;
 }
 
-.mr-aviso-yape {
-  display: flex;
-  flex-direction: column;
-  align-items: center;
-  gap: 9px;
-  padding: 20px 15px;
-  margin-top: 12px;
-  border: 1px dashed #9b82d8;
-  border-radius: 13px;
-  background: #f7f3ff;
-  text-align: center;
-}
-
-.mr-aviso-yape > span {
-  font-size: 30px;
-}
-
-.mr-aviso-yape strong {
-  color: #58339a;
-}
-
-.mr-aviso-yape p {
-  margin: 0;
-  color: #51446a;
-  font-size: 13px;
-  line-height: 1.5;
-}
-
-.mr-aviso-yape small {
-  color: #786b8c;
-  font-size: 11px;
-}
-
 @media (max-width: 420px) {
   .mr-opciones {
     gap: 7px;
@@ -808,11 +775,3 @@
   background: #5d1b6a;
 }
 
-/* Pagos enviados antes por Yape manual (verificados por el personal) */
-.mr-yape-verificando {
-  background: #fff7e6;
-}
-
-.mr-yape-verificando strong {
-  color: #9a6200 !important;
-}

@@ -13,7 +13,6 @@ import registro from './rutas/registro.routes.js';
 import portalCliente from './rutas/portal-cliente.routes.js';
 import guia from './rutas/guia.routes.js';
 import adminCatalogo from './rutas/admin-catalogo.routes.js';
-import yape from './rutas/yape.routes.js';
 
 import { fallo } from './middlewares/auth.middleware.js';
 
@@ -63,9 +62,6 @@ app.use('/api/guia', guia);
 
 // Administrador: paquetes, salidas y guía de cada salida (HU-009).
 app.use('/api/admin', adminCatalogo);
-
-// Personal: verificación de pagos con Yape (HU-006).
-app.use('/api/yape', yape);
 
 // Ruta no encontrada.
 app.use((_req, res) => {
