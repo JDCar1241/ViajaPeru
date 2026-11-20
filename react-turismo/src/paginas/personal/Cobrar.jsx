@@ -3,43 +3,16 @@ import './cobros.css';
 import { pedir } from '../../servicios/api.js';
 import { useSesion } from '../../servicios/auth.js';
 import { soles, cent } from '../../utils/moneda.js';
+import { esCorreo } from '../../utils/validaciones.js';
+import { pedirTokenTarjeta } from '../../servicios/culqi-front.js';
 
 const ROLES = ['Recepcionista', 'Administrador'];
 const METODOS = [['Efectivo', 'Efectivo'], ['Tarjeta', 'Tarjeta'], ['QR', 'QR (Yape o Plin)']];
-const CULQI_KEY = import.meta.env.VITE_CULQI_PUBLIC_KEY;
 
 const nueva = (monto = '') => ({ metodo: 'Efectivo', medio: 'Yape', monto, recibido: '', referencia: '', moneda: 'PEN' });
-const fecha = (v) => new Date(v).toLocaleDateString('es-PE', { day: 'numeric', month: 'long', year: 'numeric' });
-const emailOk = (v) => /^\S+@\S+\.\S+$/.test(String(v).trim());
+const fecha = (v) => new Date(v).toLocaleDateString('es-PE', { day: 'numeric', month: 'long', year: 'numeric', timeZone: 'America/Lima' });
 // Dólares a partir de céntimos de dólar
 const dolares = (c) => new Intl.NumberFormat('en-US', { style: 'currency', currency: 'USD' }).format(c / 100);
-
-// Abre el formulario de Culqi y devuelve el ID del token de la tarjeta.
-// Los datos de la tarjeta van directo a Culqi: nunca pasan por tu servidor.
-// "monto" va en céntimos de la moneda elegida (PEN o USD).
-function pedirToken({ monto, email, moneda }) {
-  return new Promise((resolve, reject) => {
-    if (!window.CulqiCheckout) return reject(new Error('No cargó el formulario de Culqi. Recarga la página.'));
-    if (!CULQI_KEY) return reject(new Error('Falta VITE_CULQI_PUBLIC_KEY en el .env del front.'));
-
-    const culqi = new window.CulqiCheckout(CULQI_KEY, {
-      settings: { title: 'ViajaPeru', currency: moneda, amount: monto },
-      client: { email },
-      options: { lang: 'es', paymentMethods: { tarjeta: true, yape: false } },
-    });
-
-    culqi.culqi = () => {
-      if (culqi.token) {
-        resolve(culqi.token.id);
-        if (typeof culqi.close === 'function') culqi.close();
-      } else if (culqi.error) {
-        reject(new Error(culqi.error.user_message || 'No se pudo procesar la tarjeta.'));
-        if (typeof culqi.close === 'function') culqi.close();
-      }
-    };
-    culqi.open();
-  });
-}
 
 export default function Cobrar({ id }) {
   const sesion = useSesion();
@@ -118,7 +91,7 @@ export default function Cobrar({ id }) {
     }
     return '';
   };
-  const valido = falta === 0 && lineas.every((l) => !errLinea(l)) && (!lineaTarjeta || emailOk(correo));
+  const valido = falta === 0 && lineas.every((l) => !errLinea(l)) && (!lineaTarjeta || esCorreo(correo));
   const setL = (i, k) => (e) => setLineas(lineas.map((l, j) => (j === i ? { ...l, [k]: e.target.value } : l)));
 
   async function cobrar() {
@@ -136,7 +109,7 @@ export default function Cobrar({ id }) {
           setTc(Number(t.usd));
           montoTarjeta = Math.round(montoTarjeta / Number(t.usd));
         }
-        token = await pedirToken({ monto: montoTarjeta, email: correo.trim(), moneda: lineaTarjeta.moneda });
+        token = await pedirTokenTarjeta({ centimos: montoTarjeta, email: correo.trim(), moneda: lineaTarjeta.moneda });
         if (miIntento !== intento.current) return; // el recepcionista canceló mientras tanto
         setEsperandoTarjeta(false);
       }

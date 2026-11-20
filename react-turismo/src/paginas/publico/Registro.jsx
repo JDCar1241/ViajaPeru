@@ -105,7 +105,13 @@ export default function Registro() {
       window.location.hash = '#/verifica-correo';
     } catch (ex) {
       if (ex.estado === 422) {
-        setErr(esPasaporte ? { mrz: ex.message || 'No pudimos validar el pasaporte.' } : { numero: `Ingrese un ${NOMBRE_DOC[f.tipo]} válido.` });
+        // Se muestra el motivo real del Backend junto al campo que corresponde
+        // (antes cualquier 422 decía "Ingrese un DNI válido", aunque fallaran los nombres).
+        const motivo = ex.message || '';
+        if (esPasaporte) setErr({ mrz: motivo || 'No pudimos validar el pasaporte.' });
+        else if (/nombres/i.test(motivo)) setErr({ nombres: motivo });
+        else if (/apellidos/i.test(motivo)) setErr({ paterno: motivo });
+        else setErr({ numero: motivo || `Ingrese un ${NOMBRE_DOC[f.tipo]} válido.` });
       } else if (ex.estado === 409 && /correo/i.test(ex.message)) setErr({ correo: ex.message });
       else setFallo(ex.message || 'No pudimos crear la cuenta. Inténtalo de nuevo.');
     } finally { setEnviando(false); }

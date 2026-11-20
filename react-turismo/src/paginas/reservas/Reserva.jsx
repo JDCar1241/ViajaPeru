@@ -29,6 +29,7 @@ const fecha = (v) =>
     day: 'numeric',
     month: 'long',
     year: 'numeric',
+    timeZone: 'America/Lima',
   });
 
 const persona = () => ({
@@ -112,8 +113,6 @@ function Fila({
           '/' +
           encodeURIComponent(p.nro_documento)
       );
-
-      console.log('Respuesta de consulta de documento:', r);
 
       if (r?.encontrado) {
         onCambio({
@@ -641,8 +640,9 @@ export default function Reserva({ paqueteId, salidaId }) {
       console.error('Error al registrar reserva:', ex);
 
       if (ex.estado === 409) {
+        // 409 = sin cupos o salida no disponible: el Backend dice cuál de los dos.
         setFallo(
-          'Otra reserva ocupó cupos de esta salida. Revisa los cupos actualizados.'
+          (ex.message || 'La salida cambió.') + ' Revisa los cupos actualizados.'
         );
         cargar();
       } else {

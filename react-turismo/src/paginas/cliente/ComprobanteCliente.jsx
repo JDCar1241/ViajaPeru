@@ -1,14 +1,16 @@
 
 import { useEffect, useState } from 'react';
-import { pedir } from '../../servicios/api.js';
-import { getSesion } from '../../servicios/auth.js';
+import { pedir, pedirArchivo } from '../../servicios/api.js';
 import './ComprobanteCliente.css';
+
+const numeroCompleto = (c) => `${c.serie}-${String(c.numero).padStart(8, '0')}`;
 
 export default function ComprobanteCliente({ id }) {
   const [comprobante, setComprobante] = useState(null);
   const [cargando, setCargando] = useState(true);
   const [error, setError] = useState('');
   const [descargando, setDescargando] = useState(false);
+  const [errorPdf, setErrorPdf] = useState('');
 
   useEffect(() => {
     const controller = new AbortController();
@@ -45,45 +47,26 @@ export default function ComprobanteCliente({ id }) {
   async function descargarPDF() {
     try {
       setDescargando(true);
+      setErrorPdf('');
 
-      const sesion = getSesion();
-
-      if (!sesion?.token) {
-        throw new Error('Tu sesión ha vencido. Inicia sesión nuevamente.');
-      }
-
-      const BASE = (import.meta.env.VITE_API_URL || '/api')
-        .replace(/\/paquetes\/?$/, '')
-        .replace(/\/$/, '');
-
-      const respuesta = await fetch(
-        `${BASE}/portal-cliente/comprobantes/${comprobante.id}/pdf`,
-        {
-          headers: {
-            Authorization: `Bearer ${sesion.token}`,
-          },
-        }
+      const blob = await pedirArchivo(
+        `/portal-cliente/comprobantes/${comprobante.id}/pdf`
       );
 
-      if (!respuesta.ok) {
-        const data = await respuesta.json().catch(() => ({}));
-        throw new Error(data.mensaje || data.error || 'No se pudo descargar el PDF.');
-      }
-
-      const blob = await respuesta.blob();
       const url = URL.createObjectURL(blob);
       const enlace = document.createElement('a');
 
       enlace.href = url;
-      enlace.download = `comprobante-${comprobante.id}.pdf`;
+      enlace.download = `${numeroCompleto(comprobante)}.pdf`;
 
       document.body.appendChild(enlace);
       enlace.click();
       enlace.remove();
 
-      URL.revokeObjectURL(url);
+      // Revocar al instante puede cortar la descarga en Firefox y Safari.
+      setTimeout(() => URL.revokeObjectURL(url), 60_000);
     } catch (e) {
-      alert(e.message);
+      setErrorPdf(e.message || 'No se pudo descargar el PDF.');
     } finally {
       setDescargando(false);
     }
@@ -121,10 +104,11 @@ export default function ComprobanteCliente({ id }) {
         <div className="cc-cabecera">
           <span className="cc-etiqueta">VIAJAPERU</span>
           <h1>
-            {comprobante.tipo === 'factura' ? 'FACTURA' : 'BOLETA DE VENTA'}
+            {/* El Backend guarda 'Boleta' o 'Factura' (con mayúscula) */}
+            {String(comprobante.tipo).toLowerCase() === 'factura' ? 'FACTURA' : 'BOLETA DE VENTA'}
           </h1>
           <strong>
-            {comprobante.serie}-{comprobante.numero}
+            {numeroCompleto(comprobante)}
           </strong>
         </div>
 
@@ -143,7 +127,7 @@ export default function ComprobanteCliente({ id }) {
             <small>Fecha de emisión</small>
             <strong>
               {comprobante.emitido_en
-                ? new Date(comprobante.emitido_en).toLocaleString('es-PE')
+                ? new Date(comprobante.emitido_en).toLocaleString('es-PE', { timeZone: 'America/Lima' })
                 : 'No disponible'}
             </strong>
           </div>
@@ -187,6 +171,10 @@ export default function ComprobanteCliente({ id }) {
         >
           {descargando ? 'Descargando...' : 'Descargar comprobante PDF'}
         </button>
+
+        {errorPdf && (
+          <p className="cc-error" role="alert">{errorPdf}</p>
+        )}
       </section>
     </main>
   );

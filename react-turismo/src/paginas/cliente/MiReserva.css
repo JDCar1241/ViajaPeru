@@ -97,6 +97,11 @@
   color: #16824b;
 }
 
+.mr-cancelada {
+  background: #fde8e8;
+  color: #b42318;
+}
+
 .mr-destino {
   display: flex;
   align-items: center;
@@ -489,6 +494,35 @@
   margin: 7px 0 0;
   color: #668a76;
   font-size: 11px;
+}
+
+.mr-pago-cancelado {
+  background: #fdf0f0;
+}
+
+.mr-pago-cancelado > span {
+  background: #fbd9d9;
+  color: #b42318;
+}
+
+.mr-pago-cancelado strong {
+  color: #b42318;
+}
+
+.mr-pago-cancelado p {
+  color: #8a6666;
+}
+
+.mr-boton-cancelar {
+  width: 100%;
+  margin-top: 8px;
+  border: 1px solid #176b83;
+  background: white;
+  color: #176b83;
+}
+
+.mr-boton-cancelar:hover {
+  background: #eef6f8;
 }
 
 .mr-alerta {

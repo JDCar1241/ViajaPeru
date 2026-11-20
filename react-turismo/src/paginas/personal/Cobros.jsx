@@ -5,7 +5,7 @@ import { useSesion } from '../../servicios/auth.js';
 import { soles } from '../../utils/moneda.js';
 
 const ROLES = ['Recepcionista', 'Administrador'];
-const fecha = (v) => new Date(v).toLocaleDateString('es-PE', { day: 'numeric', month: 'short', year: 'numeric' });
+const fecha = (v) => new Date(v).toLocaleDateString('es-PE', { day: 'numeric', month: 'short', year: 'numeric', timeZone: 'America/Lima' });
 
 export default function Cobros() {
   const sesion = useSesion();

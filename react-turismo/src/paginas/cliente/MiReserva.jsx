@@ -1,10 +1,10 @@
 
-import { useCallback, useEffect, useState } from 'react';
+import { useCallback, useEffect, useRef, useState } from 'react';
 import { pedir } from '../../servicios/api.js';
 import { useSesion } from '../../servicios/auth.js';
+import { pedirTokenTarjeta, CULQI_KEY } from '../../servicios/culqi-front.js';
+import { esCorreo } from '../../utils/validaciones.js';
 import './MiReserva.css';
-
-const CULQI_KEY = import.meta.env.VITE_CULQI_PUBLIC_KEY;
 
 function moneda(valor, tipo = 'PEN') {
   return Number(valor || 0).toLocaleString('es-PE', {
@@ -30,6 +30,7 @@ function fecha(valor) {
     day: '2-digit',
     month: 'long',
     year: 'numeric',
+    timeZone: 'America/Lima',
   });
 }
 
@@ -43,60 +44,6 @@ function estadoTexto(estado) {
   };
 
   return estados[String(estado || '').toLowerCase()] || estado || 'Sin estado';
-}
-
-// Culqi se utiliza exclusivamente para pagos con tarjeta.
-function pedirToken({ monto, moneda: tipoMoneda, email }) {
-  return new Promise((resolve, reject) => {
-    if (!window.CulqiCheckout) {
-      reject(new Error('No cargó el formulario de Culqi. Recarga la página.'));
-      return;
-    }
-
-    if (!CULQI_KEY) {
-      reject(new Error('Falta VITE_CULQI_PUBLIC_KEY en el .env del frontend.'));
-      return;
-    }
-
-    const culqi = new window.CulqiCheckout(CULQI_KEY, {
-      settings: {
-        title: 'ViajaPeru',
-        currency: tipoMoneda,
-        amount: monto,
-      },
-      client: { email },
-      options: {
-        lang: 'es',
-        paymentMethods: {
-          tarjeta: true,
-          yape: false,
-        },
-      },
-    });
-
-    culqi.culqi = () => {
-      if (culqi.token) {
-        const token = culqi.token.id;
-
-        if (typeof culqi.close === 'function') {
-          culqi.close();
-        }
-
-        resolve(token);
-      } else if (culqi.error) {
-        const mensaje =
-          culqi.error.user_message || 'No se pudo procesar el pago.';
-
-        if (typeof culqi.close === 'function') {
-          culqi.close();
-        }
-
-        reject(new Error(mensaje));
-      }
-    };
-
-    culqi.open();
-  });
 }
 
 function Info({ icono, titulo, valor }) {
@@ -130,6 +77,10 @@ export default function MiReserva() {
   const [pagando, setPagando] = useState(false);
   const [esperandoTarjeta, setEsperandoTarjeta] = useState(false);
   const [correo, setCorreo] = useState('');
+
+  // Identifica el intento de pago vigente. Si la persona cierra el formulario de Culqi,
+  // Culqi no avisa: con "Cancelar" se invalida el intento y se libera el botón.
+  const intento = useRef(0);
 
   const cargarReserva = useCallback(async () => {
     if (!id) {
@@ -214,8 +165,10 @@ export default function MiReserva() {
     ? dolares(totalDolares)
     : moneda(totalSoles / 100);
 
-  const pendiente =
-    String(reserva?.estado || '').toLowerCase() === 'pendiente';
+  const estadoActual = String(reserva?.estado || '').toLowerCase();
+  const pendiente = estadoActual === 'pendiente';
+  const pagada = estadoActual === 'pagada';
+  const cancelada = estadoActual === 'cancelada';
 
   function seleccionarMetodo(metodo) {
     setMetodoPago(metodo);
@@ -255,7 +208,7 @@ export default function MiReserva() {
       return;
     }
 
-    if (!correo.trim() || !/^\S+@\S+\.\S+$/.test(correo.trim())) {
+    if (!esCorreo(correo)) {
       setError('Ingresa un correo electrónico válido para el pago.');
       return;
     }
@@ -264,6 +217,8 @@ export default function MiReserva() {
       setError('No está configurada la llave pública de Culqi.');
       return;
     }
+
+    const miIntento = ++intento.current;
 
     try {
       setEsperandoTarjeta(true);
@@ -275,7 +230,8 @@ export default function MiReserva() {
           `/portal-cliente/reservas/${id}/tipo-cambio`
         );
 
-        const tcActual = Number(cambio.usd);
+        // Este endpoint responde { tipo_cambio, total_dolares, ... } (no "usd").
+        const tcActual = Number(cambio.tipo_cambio);
 
         if (!tcActual || !Number.isFinite(tcActual)) {
           throw new Error('No se pudo obtener un tipo de cambio válido.');
@@ -289,11 +245,13 @@ export default function MiReserva() {
         }
       }
 
-      const token = await pedirToken({
-        monto: montoFinal,
+      const token = await pedirTokenTarjeta({
+        centimos: montoFinal,
         moneda: monedaPago,
         email: correo.trim(),
       });
+
+      if (miIntento !== intento.current) return; // la persona canceló mientras tanto
 
       setEsperandoTarjeta(false);
       setPagando(true);
@@ -317,14 +275,25 @@ export default function MiReserva() {
 
       await cargarReserva();
     } catch (e) {
+      if (miIntento !== intento.current) return;
+
       setError(
         e.message ||
         'No pudimos procesar el pago. Verifica el estado antes de volver a intentarlo.'
       );
     } finally {
-      setPagando(false);
-      setEsperandoTarjeta(false);
+      if (miIntento === intento.current) {
+        setPagando(false);
+        setEsperandoTarjeta(false);
+      }
     }
+  }
+
+  // Si cerró el formulario de Culqi sin pagar, el botón se libera para volver a intentar.
+  function cancelarTarjeta() {
+    intento.current++;
+    setEsperandoTarjeta(false);
+    setPagando(false);
   }
 
   const nombrePaquete =
@@ -372,7 +341,7 @@ export default function MiReserva() {
               </div>
 
               <span className={`mr-estado ${
-                pendiente ? 'mr-pendiente' : 'mr-pagada'
+                pendiente ? 'mr-pendiente' : pagada ? 'mr-pagada' : 'mr-cancelada'
               }`}>
                 <span />
                 {estadoTexto(reserva.estado)}
@@ -602,6 +571,16 @@ export default function MiReserva() {
                               : 'Pagar con tarjeta →'}
                         </button>
 
+                        {esperandoTarjeta && (
+                          <button
+                            type="button"
+                            className="mr-boton mr-boton-cancelar"
+                            onClick={cancelarTarjeta}
+                          >
+                            Cancelar
+                          </button>
+                        )}
+
                         <small className="mr-seguridad">
                           🔒 Pago con tarjeta procesado de forma segura mediante Culqi.
                         </small>
@@ -622,17 +601,29 @@ export default function MiReserva() {
                       </div>
                     )}
                   </div>
-                ) : (
+                ) : pagada ? (
                   <div className="mr-pago-completo">
                     <span>✓</span>
                     <strong>Reserva pagada</strong>
                     <p>Tu pago ha sido registrado correctamente.</p>
                     <a
-                            href={`#/mi-comprobante/${id}`}
-                            className="mr-boton-comprobante"
-                            >
-                            Ver mi comprobante
-                        </a>
+                      href={`#/mi-comprobante/${id}`}
+                      className="mr-boton-comprobante"
+                    >
+                      Ver mi comprobante
+                    </a>
+                  </div>
+                ) : (
+                  <div className="mr-pago-completo mr-pago-cancelado">
+                    <span>✕</span>
+                    <strong>
+                      {cancelada ? 'Reserva cancelada' : estadoTexto(reserva.estado)}
+                    </strong>
+                    <p>
+                      {cancelada
+                        ? 'Esta reserva fue cancelada. Si correspondía, el importe se acreditó como saldo a favor.'
+                        : 'Esta reserva no admite pagos.'}
+                    </p>
                   </div>
                 )}
               </aside>

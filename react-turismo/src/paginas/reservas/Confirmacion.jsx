@@ -3,29 +3,19 @@ import '../../estilos/reservas.css';
 import { ultima } from '../../servicios/api.js';
 import { useSesion } from '../../servicios/auth.js';
 
+// La salida llega como fecha y hora ISO (en UTC). Cortar los 10 primeros caracteres
+// daba el día UTC, que puede ser el día siguiente al de Lima: se formatea en hora de Lima.
 const fecha = (v) => {
   if (!v) return 'No especificada';
 
-  const valor = String(v).slice(0, 10);
-  const partes = valor.split('-');
+  const d = new Date(v);
+  if (Number.isNaN(d.getTime())) return 'No especificada';
 
-  if (partes.length === 3) {
-    const [anio, mes, dia] = partes;
-    return new Date(
-      Number(anio),
-      Number(mes) - 1,
-      Number(dia)
-    ).toLocaleDateString('es-PE', {
-      day: 'numeric',
-      month: 'long',
-      year: 'numeric',
-    });
-  }
-
-  return new Date(v).toLocaleDateString('es-PE', {
+  return d.toLocaleDateString('es-PE', {
     day: 'numeric',
     month: 'long',
     year: 'numeric',
+    timeZone: 'America/Lima',
   });
 };
 

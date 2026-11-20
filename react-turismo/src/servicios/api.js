@@ -96,6 +96,40 @@ export async function pedir(ruta, { signal, ...opciones } = {}) {
 }
 
 // ============================================
+// ARCHIVOS (PDF de comprobantes)
+// Un enlace normal no puede enviar el token: se descarga con fetch y se devuelve un Blob.
+// ============================================
+
+export async function pedirArchivo(ruta) {
+  const s = getSesion();
+
+  let r;
+
+  try {
+    r = await fetch(BASE + ruta, {
+      headers: s ? { Authorization: 'Bearer ' + s.token } : {},
+      signal: AbortSignal.timeout(TIEMPO_MAX_MS),
+    });
+  } catch {
+    const err = new Error(
+      'No pudimos conectar con el servidor. Revisa tu conexión e inténtalo de nuevo.'
+    );
+    err.estado = 0;
+    throw err;
+  }
+
+  if (!r.ok) {
+    const datos = await r.json().catch(() => ({}));
+    const e = new Error(datos.mensaje || datos.error || 'No pudimos obtener el archivo.');
+    e.estado = r.status;
+    if (r.status === 401 && s) cerrarSesion();
+    throw e;
+  }
+
+  return r.blob();
+}
+
+// ============================================
 // MÉTODOS HTTP
 // ============================================
 

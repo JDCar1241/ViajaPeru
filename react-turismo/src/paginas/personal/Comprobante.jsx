@@ -1,9 +1,10 @@
 import { useEffect, useState } from 'react';
 import './cobros.css';
 import './comprobante.css';
-import { pedir } from '../../servicios/api.js';
-import { getSesion, useSesion } from '../../servicios/auth.js';
+import { pedir, pedirArchivo } from '../../servicios/api.js';
+import { useSesion } from '../../servicios/auth.js';
 import { soles } from '../../utils/moneda.js';
+import { validarDocumento } from '../../utils/documentos.js';
 
 const ROLES = ['Recepcionista', 'Administrador'];
 const LIMITE = 700; // desde este total la boleta debe identificar al comprador
@@ -15,13 +16,10 @@ const TIPOS = [
 ];
 const RE_RUC = /^(10|15|16|17|20)\d{9}$/; // 11 dígitos; 10 = persona natural, 20 = empresa
 const limpiar = (v) => v.replace(/\s+/g, '').toUpperCase();
-const errDoc = (tipo, n) => {
-  const x = limpiar(n);
-  if (tipo === 'DNI') return /^\d{8}$/.test(x) ? '' : 'El DNI tiene 8 dígitos.';
-  return /^[A-Z0-9]{6,15}$/.test(x) ? '' : 'Escribe entre 6 y 15 letras o números.';
-};
+// Mismas reglas que el Backend (utils/documentos.js). Aquí el pasaporte se llama 'Pasaporte'.
+const errDoc = (tipo, n) => validarDocumento(String(tipo).toUpperCase(), limpiar(n));
 const numeroCompleto = (c) => `${c.serie}-${String(c.numero).padStart(8, '0')}`;
-const fecha = (v) => new Date(v).toLocaleDateString('es-PE', { day: 'numeric', month: 'long', year: 'numeric' });
+const fecha = (v) => new Date(v).toLocaleDateString('es-PE', { day: 'numeric', month: 'long', year: 'numeric', timeZone: 'America/Lima' });
 
 export default function Comprobante({ id }) {
   const sesion = useSesion();
@@ -77,9 +75,8 @@ export default function Comprobante({ id }) {
     setPdfError('');
     const ventana = modo === 'imprimir' ? window.open('', '_blank') : null;
     try {
-      const resp = await fetch('/api/comprobantes/' + comp.id + '/pdf', { headers: { Authorization: 'Bearer ' + getSesion().token } });
-      if (!resp.ok) throw new Error();
-      const url = URL.createObjectURL(await resp.blob());
+      // pedirArchivo usa VITE_API_URL: con una ruta fija '/api' no funcionaba en producción.
+      const url = URL.createObjectURL(await pedirArchivo('/comprobantes/' + comp.id + '/pdf'));
       if (ventana) ventana.location.href = url;
       else { const a = document.createElement('a'); a.href = url; a.download = `${numeroCompleto(comp)}.pdf`; a.click(); }
       setTimeout(() => URL.revokeObjectURL(url), 60000);
@@ -196,7 +193,7 @@ export default function Comprobante({ id }) {
                 <select value={doc.tipo_documento} onChange={setD('tipo_documento')}>{DOCS.map(([v, t]) => <option key={v} value={v}>{t}</option>)}</select>
               </label>
               <label className="fld">Número
-                <input value={doc.numero_documento} onChange={setD('numero_documento')} maxLength={15} aria-invalid={!!err.numero} />
+                <input value={doc.numero_documento} onChange={setD('numero_documento')} maxLength={doc.tipo_documento === 'DNI' ? 8 : 12} aria-invalid={!!err.numero} />
                 {err.numero && <span className="cb-error" role="alert">{err.numero}</span>}
               </label>
               <label className="fld lg">Nombre completo

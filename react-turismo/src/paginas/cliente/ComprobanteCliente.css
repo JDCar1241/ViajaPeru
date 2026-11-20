@@ -134,3 +134,10 @@
     grid-template-columns: 1fr;
   }
 }
+
+.cc-error {
+  margin: 12px 0 0;
+  color: #b42318;
+  font-size: 14px;
+  text-align: center;
+}

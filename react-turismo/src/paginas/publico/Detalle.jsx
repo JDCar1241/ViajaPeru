@@ -8,6 +8,7 @@ export default function Detalle({ id }) {
   const [p, setP] = useState(null);
   const [estado, setEstado] = useState('cargando');
   const [tipoCambio, setTipoCambio] = useState(null);
+  const [intento, setIntento] = useState(0);
 
   // Obtener los datos del paquete.
   useEffect(() => {
@@ -18,18 +19,21 @@ export default function Detalle({ id }) {
 
     obtenerPaquete(id, ctrl.signal)
       .then(d => {
-        if (!d) throw new Error('404');
+        if (!d) {
+          setEstado('noexiste');
+          return;
+        }
         setP(d);
         setEstado('ok');
       })
       .catch(e => {
-        if (e.name !== 'AbortError') {
-          setEstado('error');
-        }
+        if (e.name === 'AbortError') return;
+        // 400/404 = el paquete no existe. Lo demás es un problema de conexión o del servidor.
+        setEstado(e.estado === 404 || e.estado === 400 ? 'noexiste' : 'error');
       });
 
     return () => ctrl.abort();
-  }, [id]);
+  }, [id, intento]);
 
   // Obtener el tipo de cambio configurado en el backend.
   useEffect(() => {
@@ -58,13 +62,23 @@ export default function Detalle({ id }) {
     return <div className="skeleton" style={{ height: 420 }} />;
   }
 
-  if (estado === 'error') {
+  if (estado === 'noexiste') {
     return (
       <div className="error" role="alert">
         <strong>No encontramos este paquete</strong>
         <p>
           <a href="#/paquetes">Volver al catálogo</a>
         </p>
+      </div>
+    );
+  }
+
+  if (estado === 'error') {
+    return (
+      <div className="error" role="alert">
+        <strong>No pudimos cargar el paquete</strong>
+        <p className="muted">Revisa tu conexión e inténtalo de nuevo.</p>
+        <button className="btn" onClick={() => setIntento(n => n + 1)}>Reintentar</button>
       </div>
     );
   }
@@ -92,7 +106,7 @@ export default function Detalle({ id }) {
     s.estado === 'Activa' && Number(s.cupos_disponibles) > 0;
 
   return (
-    <main className="detalle-page">
+    <div className="detalle-page">
       <a href="#/paquetes" className="volver">
         ← Volver al catálogo
       </a>
@@ -242,6 +256,6 @@ export default function Detalle({ id }) {
           )}
         </section>
       </div>
-    </main>
+    </div>
   );
 }

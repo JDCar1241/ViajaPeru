@@ -1,7 +1,9 @@
-export const esCorreo = (v) => /^[^\s@]+@[^\s@]+\.[^\s@]{2,}$/.test(v.trim());
-export const esDni = (v) => /^\d{8}$/.test(v.trim());
-export const esTelefono = (v) => /^\d{9}$/.test(v.trim());
-export const noVacio = (v) => v.trim().length > 0;
+// Aceptan null/undefined (perfiles incompletos) sin lanzar errores.
+const limpio = (v) => String(v ?? '').trim();
+export const esCorreo = (v) => /^[^\s@]+@[^\s@]+\.[^\s@]{2,}$/.test(limpio(v));
+export const esDni = (v) => /^\d{8}$/.test(limpio(v));
+export const esTelefono = (v) => /^\d{9}$/.test(limpio(v));
+export const noVacio = (v) => limpio(v).length > 0;
 
 // Política de contraseña. Mantener igual que claveSegura en backend-turismo/src/utils/comunes.js
 export const CLAVE_MAX = 72;

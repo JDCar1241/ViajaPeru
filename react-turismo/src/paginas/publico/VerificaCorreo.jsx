@@ -12,7 +12,7 @@ export default function VerificaCorreo() {
           Confirma tu correo para poder iniciar sesión.
         </p>
         <p className="vp-sub">
-          Si no confirmas tu correo en 24 horas, la cuenta se elimina y tendrás que registrarte de nuevo.
+          ¿No te llegó? Revisa la carpeta de spam o correo no deseado. El enlace de confirmación vence después de un tiempo.
         </p>
         <a className="vp-btn" href="#/login">Ir a iniciar sesión</a>
       </div>

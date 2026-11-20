@@ -19,6 +19,7 @@ const fecha = (valor) => {
     day: 'numeric',
     month: 'long',
     year: 'numeric',
+    timeZone: 'America/Lima',
   });
 };
 

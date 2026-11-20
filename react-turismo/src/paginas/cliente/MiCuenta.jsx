@@ -74,7 +74,12 @@ export default function MiCuenta() {
                 <div className="vp-campo">
                   <label>Nombre completo</label>
                   <input
-                    value={`${perfil.nombres || ''} ${perfil.apellidos || ''}`.trim() || 'No registrado'}
+                    value={
+                      // El Backend envía los apellidos por separado (apellido_paterno / apellido_materno)
+                      [perfil.nombres, perfil.apellido_paterno, perfil.apellido_materno]
+                        .filter(Boolean)
+                        .join(' ') || 'No registrado'
+                    }
                     readOnly
                     disabled
                   />
