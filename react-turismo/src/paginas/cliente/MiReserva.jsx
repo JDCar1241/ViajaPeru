@@ -5,6 +5,7 @@ import { useSesion } from '../../servicios/auth.js';
 import { pedirTokenTarjeta, CULQI_KEY } from '../../servicios/culqi-front.js';
 import { esCorreo } from '../../utils/validaciones.js';
 import './MiReserva.css';
+import Confirmar from '../../componentes/Confirmar.jsx';
 
 function moneda(valor, tipo = 'PEN') {
   return Number(valor || 0).toLocaleString('es-PE', {
@@ -83,6 +84,7 @@ export default function MiReserva() {
   const [usarSaldo, setUsarSaldo] = useState(false);
 
   const [cancelando, setCancelando] = useState(false);
+  const [confirmarCancelacion, setConfirmarCancelacion] = useState(false);
 
   // Identifica el intento de pago vigente. Si la persona cierra el formulario de Culqi,
   // Culqi no avisa: con "Cancelar" se invalida el intento y se libera el botón.
@@ -368,19 +370,14 @@ export default function MiReserva() {
   }
 
   // Solo reservas pagadas. El importe vuelve como saldo a favor (no en efectivo).
-  async function cancelarReserva() {
+  // Primero se abre la ventana de confirmación; al confirmar se llama a cancelarReserva().
+  function pedirCancelacion() {
     setError('');
     setMensaje('');
+    setConfirmarCancelacion(true);
+  }
 
-    const confirmar = window.confirm(
-      `¿Seguro que quieres cancelar esta reserva?\n\n` +
-      `Se liberarán los cupos y ${moneda(reserva.total)} se acreditarán como saldo a favor ` +
-      `para tus próximas reservas en ViajaPerú. El saldo no es canjeable por dinero.\n\n` +
-      `Esta acción no se puede deshacer.`
-    );
-
-    if (!confirmar) return;
-
+  async function cancelarReserva() {
     try {
       setCancelando(true);
 
@@ -400,6 +397,7 @@ export default function MiReserva() {
       setError(e.message || 'No pudimos cancelar la reserva.');
     } finally {
       setCancelando(false);
+      setConfirmarCancelacion(false);
     }
   }
 
@@ -782,7 +780,7 @@ export default function MiReserva() {
                         <button
                           type="button"
                           className="mr-boton mr-boton-cancelar"
-                          onClick={cancelarReserva}
+                          onClick={pedirCancelacion}
                           disabled={cancelando}
                         >
                           {cancelando ? 'Cancelando...' : 'Cancelar reserva'}
@@ -827,6 +825,25 @@ export default function MiReserva() {
           </>
         )}
       </div>
+
+      {reserva && (
+        <Confirmar
+          abierto={confirmarCancelacion}
+          titulo="¿Cancelar esta reserva?"
+          confirmar="Sí, cancelar reserva"
+          volver="No, volver"
+          peligro
+          ocupado={cancelando}
+          onConfirmar={cancelarReserva}
+          onCerrar={() => setConfirmarCancelacion(false)}
+        >
+          <p>
+            Se liberarán los cupos y <strong>{moneda(reserva.total)}</strong> se acreditarán
+            como saldo a favor para tus próximas reservas en ViajaPerú.
+          </p>
+          <p>El saldo no es canjeable por dinero. Esta acción no se puede deshacer.</p>
+        </Confirmar>
+      )}
     </main>
   );
 }
