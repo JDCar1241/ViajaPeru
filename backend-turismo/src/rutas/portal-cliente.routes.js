@@ -529,10 +529,14 @@ router.post('/reservas/:id/yape', limitarYape, async (req, res, next) => {
   } catch (e) { next(e); }
 });
 
+// Culqi limita cada pago con Yape a S/ 2,000.
+const YAPE_MAX_CENT = 200_000;
+
 // POST /api/portal-cliente/reservas/:id/pagar
 // { token?, moneda?: 'PEN' | 'USD', usar_saldo?: boolean }
+// token: tkn_... (tarjeta) o ype_... (Yape por Culqi: se confirma al instante, solo soles).
 // Con usar_saldo se gasta TODO el saldo posible (hasta el total de la reserva).
-// Si el saldo cubre el total no hace falta tarjeta; si no, el resto se cobra con tarjeta.
+// Si el saldo cubre el total no hace falta tarjeta ni Yape; si no, el resto se cobra con el token.
 router.post('/reservas/:id/pagar', limitarPago, async (req, res, next) => {
   let cargoId = null;
   let centimos = 0;
@@ -565,6 +569,7 @@ router.post('/reservas/:id/pagar', limitarPago, async (req, res, next) => {
 
     const token = txt(req.body?.token);
     const moneda = req.body?.moneda || 'PEN';
+    const esYape = token.startsWith('ype_');
     const usarSaldo = req.body?.usar_saldo === true;
 
     if (!MONEDAS.includes(moneda)) {
@@ -624,8 +629,16 @@ router.post('/reservas/:id/pagar', limitarPago, async (req, res, next) => {
     let cargo = null;
 
     if (restoCent > 0) {
-      if (!/^tkn_[A-Za-z0-9_]{4,60}$/.test(token)) {
-        return fallo(res, 400, 'El token de tarjeta no es válido.');
+      if (!/^(tkn|ype)_[A-Za-z0-9_]{4,60}$/.test(token)) {
+        return fallo(res, 400, 'El token de pago no es válido.');
+      }
+
+      // Yape por Culqi: solo soles y hasta S/ 2,000 por pago (límite de Culqi).
+      if (esYape && moneda !== 'PEN') {
+        return fallo(res, 400, 'Yape solo acepta pagos en soles.');
+      }
+      if (esYape && restoCent > YAPE_MAX_CENT) {
+        return fallo(res, 400, 'Yape acepta pagos de hasta S/ 2,000. Usa tarjeta para este importe.');
       }
 
       const email =
@@ -699,7 +712,7 @@ router.post('/reservas/:id/pagar', limitarPago, async (req, res, next) => {
           await devolverCargo();
         }
 
-        return fallo(res, 402, 'El pago con tarjeta no fue aprobado.');
+        return fallo(res, 402, esYape ? 'El pago con Yape no fue aprobado.' : 'El pago con tarjeta no fue aprobado.');
       }
 
       const monedaCargo = String(
@@ -736,7 +749,9 @@ router.post('/reservas/:id/pagar', limitarPago, async (req, res, next) => {
 
     // ---- Registrar el pago (si falla con un cargo ya hecho, se devuelve el dinero) ----
     const lineaTarjeta = cargoId
-      ? [{ metodo: 'Tarjeta', monto: restoCent / 100, referencia: cargoId }]
+      ? [esYape
+          ? { metodo: 'QR', medio: 'Yape', monto: restoCent / 100, referencia: cargoId }
+          : { metodo: 'Tarjeta', monto: restoCent / 100, referencia: cargoId }]
       : [];
 
     const { data: pago, error: errPago } = saldoCent > 0
