@@ -79,6 +79,7 @@ export async function pedir(ruta, { signal, ...opciones } = {}) {
     );
 
     e.estado = r.status;
+    e.errores = datos.errores; // errores por campo, si el Backend los envía
 
     // No cerrar sesión por credenciales incorrectas al iniciar sesión.
     if (

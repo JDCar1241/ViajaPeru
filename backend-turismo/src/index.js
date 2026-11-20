@@ -12,6 +12,7 @@ import comprobantes from './rutas/comprobantes.routes.js';
 import registro from './rutas/registro.routes.js';
 import portalCliente from './rutas/portal-cliente.routes.js';
 import guia from './rutas/guia.routes.js';
+import adminCatalogo from './rutas/admin-catalogo.routes.js';
 
 import { fallo } from './middlewares/auth.middleware.js';
 
@@ -58,6 +59,9 @@ app.use('/api/portal-cliente', portalCliente);
 
 // Guías turísticos: salidas asignadas y control de asistencia (HU-011).
 app.use('/api/guia', guia);
+
+// Administrador: paquetes, salidas y guía de cada salida (HU-009).
+app.use('/api/admin', adminCatalogo);
 
 // Ruta no encontrada.
 app.use((_req, res) => {

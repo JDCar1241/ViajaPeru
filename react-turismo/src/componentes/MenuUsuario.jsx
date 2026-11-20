@@ -155,6 +155,17 @@ export default function MenuUsuario() {
             </>
           )}
 
+          {rol === 'Administrador' && (
+            <a
+              role="menuitem"
+              className="vp-item"
+              href="#/admin/paquetes"
+              onClick={cerrar}
+            >
+              Gestionar catálogo
+            </a>
+          )}
+
           {veSalidas && (
             <a
               role="menuitem"

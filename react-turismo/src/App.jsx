@@ -21,6 +21,8 @@ import ComprobanteCliente from './paginas/cliente/ComprobanteCliente.jsx';
 import CuentaConfirmada from './paginas/publico/CuentaConfirmada.jsx';
 import MisSalidas from './paginas/guia/MisSalidas.jsx';
 import Asistencia from './paginas/guia/Asistencia.jsx';
+import AdminPaquetes from './paginas/admin/AdminPaquetes.jsx';
+import AdminPaquete from './paginas/admin/AdminPaquete.jsx';
 
 // Vuelta desde el enlace de confirmación del correo (Supabase pone el token o el error en el hash)
 const esRetornoDeConfirmacion = (hash) =>
@@ -49,6 +51,7 @@ export default function App() {
   const miReserva = hash.match(/^#\/mi-reserva\/(\d+)/);
   const miComprobante = hash.match(/^#\/mi-comprobante\/(\d+)/);
   const guiaSalida = hash.match(/^#\/guia\/salida\/(\d+)/);
+  const adminPaquete = hash.match(/^#\/admin\/paquete\/(nuevo|\d+)/);
 
   const esCliente = sesion?.usuario?.rol === 'Cliente';
 
@@ -57,6 +60,10 @@ export default function App() {
   if (esRetornoDeConfirmacion(hash)) {
     // Vuelta desde el enlace de confirmación del correo (Supabase)
     vista = <CuentaConfirmada />;
+  } else if (adminPaquete) {
+    vista = <AdminPaquete key={hash} id={adminPaquete[1]} />;
+  } else if (hash.startsWith('#/admin/paquetes')) {
+    vista = <AdminPaquetes />;
   } else if (guiaSalida) {
     vista = <Asistencia key={hash} id={guiaSalida[1]} />;
   } else if (hash.startsWith('#/guia')) {
