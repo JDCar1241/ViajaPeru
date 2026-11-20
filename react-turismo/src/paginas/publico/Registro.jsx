@@ -74,7 +74,8 @@ export default function Registro() {
     }
     if (!esCorreo(f.correo)) n.correo = 'Escribe un correo válido.';
     if (!new RegExp(`^\\d{${pais.largo}}$`).test(f.telefono)) {
-      n.telefono = `El teléfono de ${pais.nombre} debe tener ${pais.largo} dígitos.`;
+      // HU: el mensaje debe indicar que la longitud del teléfono es inadecuada.
+      n.telefono = `La longitud del teléfono no es la adecuada: para ${pais.nombre} debe tener ${pais.largo} dígitos.`;
     }
     if (!claveValida(f.clave)) n.clave = 'La contraseña debe tener mínimo 8 caracteres, al menos una letra mayúscula y un número.';
     if (f.clave !== f.clave2) n.clave2 = 'Las contraseñas no coinciden.';
@@ -105,13 +106,11 @@ export default function Registro() {
       window.location.hash = '#/verifica-correo';
     } catch (ex) {
       if (ex.estado === 422) {
-        // Se muestra el motivo real del Backend junto al campo que corresponde
-        // (antes cualquier 422 decía "Ingrese un DNI válido", aunque fallaran los nombres).
-        const motivo = ex.message || '';
-        if (esPasaporte) setErr({ mrz: motivo || 'No pudimos validar el pasaporte.' });
-        else if (/nombres/i.test(motivo)) setErr({ nombres: motivo });
-        else if (/apellidos/i.test(motivo)) setErr({ paterno: motivo });
-        else setErr({ numero: motivo || `Ingrese un ${NOMBRE_DOC[f.tipo]} válido.` });
+        // HU "Comprar paquetes online", caso de prueba: DNI inexistente, que no coincide con
+        // los nombres o con longitud inválida -> "Ingrese un DNI válido". El Backend envía el
+        // motivo detallado (p. ej. "Los nombres no coinciden"), pero la HU pide este texto.
+        if (esPasaporte) setErr({ mrz: ex.message || 'No pudimos validar el pasaporte.' });
+        else setErr({ numero: `Ingrese un ${NOMBRE_DOC[f.tipo]} válido.` });
       } else if (ex.estado === 409 && /correo/i.test(ex.message)) setErr({ correo: ex.message });
       else setFallo(ex.message || 'No pudimos crear la cuenta. Inténtalo de nuevo.');
     } finally { setEnviando(false); }

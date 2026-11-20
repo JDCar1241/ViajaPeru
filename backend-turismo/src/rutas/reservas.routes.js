@@ -33,7 +33,7 @@ router.post('/', requiereSesion(ROLES_CAJA), async (req, res, next) => {
 
     if (error) {
       const m = error.message || '';
-      if (m.includes('CUPOS_INSUFICIENTES')) return fallo(res, 409, 'No hay cupos suficientes en esta salida.');
+      if (m.includes('CUPOS_INSUFICIENTES')) return fallo(res, 409, 'La cantidad de pasajeros excede la capacidad disponible del paquete.');
       if (m.includes('SALIDA_NO_DISPONIBLE')) return fallo(res, 409, 'La salida no está disponible.');
       if (m.includes('CLIENTE_MENOR')) return fallo(res, 400, 'El cliente que reserva debe ser mayor de edad.');
       if (m.includes('DATOS_INVALIDOS') || error.code === '23514') return fallo(res, 400, 'Los datos de la reserva no son válidos.');

@@ -91,7 +91,10 @@ router.post('/registro', limitar, async (req, res, next) => {
     const { data, error } = await clienteAnon().auth.signUp({
       email: correo,
       password: b.clave,
-      options: front ? { emailRedirectTo: front + '/#/login' } : undefined,
+      // Tras confirmar, Supabase vuelve a la raíz del Front con "#access_token=...&type=signup".
+      // El Front lo detecta (CuentaConfirmada.jsx), inicia sesión y el Backend envía la bienvenida.
+      // Esta URL debe estar en Supabase > Authentication > URL Configuration > Redirect URLs.
+      options: front ? { emailRedirectTo: front + '/' } : undefined,
     });
     if (error) {
       console.error('signUp falló:', error.code, error.message);

@@ -2,6 +2,9 @@ import { useEffect, useState } from 'react';
 import { listarPaquetes } from '../../servicios/api';
 import { moneda, cupos } from '../../utils/utils';
 
+// Los calendarios no dejan elegir días pasados (HU: fechas pasadas inhabilitadas)
+const hoy = () => new Date().toLocaleDateString('en-CA', { timeZone: 'America/Lima' }); // YYYY-MM-DD
+
 const POR_PAGINA = 9; // se envía como limit; offset = (pagina - 1) * limit
 const INICIAL = { lugar: '', fecha_desde: '', fecha_hasta: '', orden: 'costo|asc' };
 
@@ -60,10 +63,10 @@ export default function Catalogo() {
           <input name="lugar" type="text" placeholder="Ej. Tarapoto" value={borrador.lugar} onChange={cambiar} />
         </label>
         <label className="fld">Fecha desde
-          <input name="fecha_desde" type="date" value={borrador.fecha_desde} onChange={cambiar} />
+          <input name="fecha_desde" type="date" min={hoy()} value={borrador.fecha_desde} onChange={cambiar} />
         </label>
         <label className="fld">Fecha hasta
-          <input name="fecha_hasta" type="date" value={borrador.fecha_hasta} onChange={cambiar} />
+          <input name="fecha_hasta" type="date" min={borrador.fecha_desde || hoy()} value={borrador.fecha_hasta} onChange={cambiar} />
         </label>
         <label className="fld">Ordenar por
           <select name="orden" value={borrador.orden} onChange={cambiar}>

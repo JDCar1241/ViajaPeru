@@ -233,7 +233,7 @@ export default function Detalle({ id }) {
                       >
                         {activa
                           ? `${s.cupos_disponibles} cupos disponibles`
-                          : 'Sin disponibilidad'}
+                          : 'Cupos agotados'}
                       </span>
                     </div>
 
@@ -243,7 +243,7 @@ export default function Detalle({ id }) {
                       onClick={() => elegir(s)}
                       aria-label={`Elegir la salida del ${fecha(s.fecha_inicio_viaje)}`}
                     >
-                      {activa ? 'Reservar' : 'Agotado'}
+                      {activa ? 'Reservar' : 'Cupos agotados'}
                     </button>
                   </article>
                 );

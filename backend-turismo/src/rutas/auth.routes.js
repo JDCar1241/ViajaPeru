@@ -3,9 +3,79 @@ import { supabase, clienteAnon } from '../config/supabase.js';
 import { requiereSesion, obtenerPerfil, fallo } from '../middlewares/auth.middleware.js';
 import { esCorreo, claveSegura, MSG_CLAVE } from '../utils/comunes.js';
 import { crearLimitador } from '../middlewares/limitar.js';
+import { enviarCorreo } from '../servicios/correo.js';
 
 const router = Router();
 const QUINCE_MIN = 15 * 60 * 1000;
+
+const limitarConfirmado = crearLimitador({ ventanaMs: QUINCE_MIN, maximo: 20 });
+
+const escapar = (v) => String(v ?? '').replace(/[&<>"']/g, (c) => (
+  { '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[c]
+));
+
+// Respuesta de sesión: la misma forma que devuelve /login
+const respuestaSesion = (token, perfil) => ({
+  token,
+  usuario: {
+    nombre: perfil.nombre,
+    rol: perfil.rol,
+    nombres: perfil.nombres || undefined,
+    apellidos: perfil.apellido_paterno || undefined,
+  },
+});
+
+// POST /api/auth/confirmado  { token }  -> { token, usuario, bienvenida }
+// Lo llama el Front cuando el cliente vuelve desde el enlace de confirmación del correo
+// (Supabase entrega un access_token en la URL). Inicia la sesión y envía el correo de
+// bienvenida UNA sola vez (se marca en user_metadata.bienvenida_enviada).
+router.post('/confirmado', limitarConfirmado, async (req, res, next) => {
+  try {
+    const token = typeof req.body?.token === 'string' ? req.body.token.trim() : '';
+    if (!token) return fallo(res, 400, 'Falta el token de confirmación.');
+
+    const { data, error } = await supabase.auth.getUser(token);
+    const usuario = data?.user;
+    if (error || !usuario) {
+      return fallo(res, 401, 'El enlace de confirmación venció. Inicia sesión con tu correo y contraseña.');
+    }
+    if (!usuario.email_confirmed_at) {
+      return fallo(res, 403, 'Tu correo todavía no está confirmado.');
+    }
+
+    const perfil = await obtenerPerfil(usuario.id);
+    if (!perfil) return fallo(res, 403, 'Tu usuario no tiene un rol asignado.');
+
+    let bienvenida = false;
+    const meta = usuario.user_metadata || {};
+
+    if (perfil.rol === 'Cliente' && !meta.bienvenida_enviada) {
+      try {
+        const nombre = escapar(perfil.nombres || perfil.nombre);
+        await enviarCorreo({
+          destinatario: usuario.email,
+          asunto: 'Bienvenido a ViajaPerú',
+          html: `
+            <div style="font-family:Arial,sans-serif;color:#243247;max-width:600px;margin:auto">
+              <h2 style="color:#1456D6">¡Bienvenido a ViajaPerú, ${nombre}!</h2>
+              <p>Tu cuenta quedó confirmada. Ya puedes reservar y pagar tus paquetes turísticos en línea.</p>
+              <p>Desde <strong>Mis reservas</strong> puedes ver tus viajes, pagarlos y descargar tus comprobantes.</p>
+              <p>Gracias por elegirnos.</p>
+            </div>`,
+        });
+        await supabase.auth.admin.updateUserById(usuario.id, {
+          user_metadata: { ...meta, bienvenida_enviada: true },
+        });
+        bienvenida = true;
+      } catch (e) {
+        // La sesión no depende del correo: si falla, se intenta otra vez en la próxima confirmación.
+        console.error('No se pudo enviar el correo de bienvenida:', e.message || e);
+      }
+    }
+
+    res.json({ ...respuestaSesion(token, perfil), bienvenida });
+  } catch (e) { next(e); }
+});
 
 // Por IP + correo, para no bloquear a toda una oficina que comparte internet
 const limitarLogin = crearLimitador({

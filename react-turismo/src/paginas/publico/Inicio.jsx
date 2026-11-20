@@ -23,6 +23,9 @@ function Montanas() {
   );
 }
 
+// Los calendarios no dejan elegir días pasados (HU: fechas pasadas inhabilitadas)
+const hoy = () => new Date().toLocaleDateString('en-CA', { timeZone: 'America/Lima' }); // YYYY-MM-DD
+
 export default function Inicio() {
   function buscar(e) {
     e.preventDefault();
@@ -48,8 +51,8 @@ export default function Inicio() {
       <div className="wrap">
         <form className="buscador" onSubmit={buscar} role="search">
           <label className="fld lg">¿A dónde quieres ir?<input name="lugar" type="text" placeholder="Ej. Tarapoto" /></label>
-          <label className="fld">Desde<input name="fecha_desde" type="date" /></label>
-          <label className="fld">Hasta<input name="fecha_hasta" type="date" /></label>
+          <label className="fld">Desde<input name="fecha_desde" type="date" min={hoy()} /></label>
+          <label className="fld">Hasta<input name="fecha_hasta" type="date" min={hoy()} /></label>
           <button className="btn" type="submit">Buscar paquetes</button>
         </form>
 

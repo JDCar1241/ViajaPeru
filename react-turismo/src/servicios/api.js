@@ -146,6 +146,10 @@ const post = (ruta, cuerpo) =>
 export const iniciarSesion = (correo, clave) =>
   post('/auth/login', { correo, clave });
 
+// El cliente vuelve del enlace de confirmación con un token: inicia sesión y recibe la bienvenida.
+export const confirmarCuenta = (token) =>
+  post('/auth/confirmado', { token });
+
 export const cambiarClave = (actual, nueva) =>
   post('/auth/cambiar-clave', { actual, nueva });
 

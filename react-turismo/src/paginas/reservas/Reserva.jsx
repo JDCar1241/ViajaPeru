@@ -32,17 +32,53 @@ const fecha = (v) =>
     timeZone: 'America/Lima',
   });
 
+// HU "Comprar paquetes online": del titular y de cada acompañante se piden
+// DNI, apellido paterno, apellido materno y nombres (por separado).
 const persona = () => ({
   tipo_documento: 'DNI',
   nro_documento: '',
-  apellidos: '',
+  apellido_paterno: '',
+  apellido_materno: '',
   nombres: '',
   fecha_nacimiento: '',
 });
 
-const conDni = (p) => ({
+// El Backend y la base guardan un solo campo "apellidos" (paterno + materno).
+const conApellidos = (p) => ({
   ...p,
+  apellidos: [p.apellido_paterno, p.apellido_materno]
+    .map((a) => String(a || '').trim())
+    .filter(Boolean)
+    .join(' '),
+});
+
+const conDni = (p) => ({
+  ...conApellidos(p),
   dni: p.nro_documento,
+});
+
+const MSG_EXCEDE = 'La cantidad de pasajeros excede la capacidad disponible del paquete.';
+
+// Fecha de hoy (hora local) en formato YYYY-MM-DD, para el atributo "max" de los calendarios.
+const hoyISO = () => {
+  const d = new Date();
+  return [
+    d.getFullYear(),
+    String(d.getMonth() + 1).padStart(2, '0'),
+    String(d.getDate()).padStart(2, '0'),
+  ].join('-');
+};
+
+// Perfil de la cuenta -> datos del titular
+const desdePerfil = (perfil) => ({
+  tipo_documento: perfil.tipo_documento || '',
+  nro_documento: perfil.numero_documento || '',
+  apellido_paterno: perfil.apellido_paterno || '',
+  apellido_materno: perfil.apellido_materno || '',
+  nombres: perfil.nombres || '',
+  fecha_nacimiento: perfil.fecha_nacimiento || '',
+  correo: perfil.correo || '',
+  telefono: perfil.telefono || '',
 });
 
 const CONSULTA = {
@@ -116,7 +152,9 @@ function Fila({
 
       if (r?.encontrado) {
         onCambio({
-          apellidos: r.apellidos,
+          // Si el Backend no los separa, todo va al paterno y la persona lo corrige.
+          apellido_paterno: r.apellido_paterno ?? r.apellidos ?? '',
+          apellido_materno: r.apellido_materno ?? '',
           nombres: r.nombres,
         });
 
@@ -206,12 +244,21 @@ function Fila({
 
       <div className="vp-fila">
         <Campo
-          etiqueta="Apellidos"
-          value={p.apellidos}
+          etiqueta="Apellido paterno"
+          value={p.apellido_paterno}
           onChange={(e) =>
-            onCambio({ apellidos: e.target.value })
+            onCambio({ apellido_paterno: e.target.value })
           }
-          error={err[pre + 'apellidos']}
+          error={err[pre + 'apellido_paterno']}
+        />
+
+        <Campo
+          etiqueta={esDni ? 'Apellido materno' : 'Apellido materno (si tiene)'}
+          value={p.apellido_materno}
+          onChange={(e) =>
+            onCambio({ apellido_materno: e.target.value })
+          }
+          error={err[pre + 'apellido_materno']}
         />
 
         <Campo
@@ -222,10 +269,13 @@ function Fila({
           }
           error={err[pre + 'nombres']}
         />
+      </div>
 
+      <div className="vp-fila">
         <Campo
           etiqueta="Fecha de nacimiento"
           type="date"
+          max={hoyISO()}
           value={p.fecha_nacimiento}
           onChange={(e) =>
             onCambio({ fecha_nacimiento: e.target.value })
@@ -291,7 +341,9 @@ export default function Reserva({ paqueteId, salidaId }) {
 
   useEffect(() => {
     if (!sesion) {
-      window.location.hash = '#/login';
+      // HU: sin sesión no se puede comprar. Se avisa en el login y luego se vuelve aquí.
+      window.location.hash =
+        '#/login?motivo=compra&volver=' + encodeURIComponent(window.location.hash);
       return;
     }
 
@@ -317,20 +369,7 @@ export default function Reserva({ paqueteId, salidaId }) {
 
         if (!activo) return;
 
-        setCliente({
-          tipo_documento: perfil.tipo_documento || '',
-          nro_documento: perfil.numero_documento || '',
-          apellidos: [
-            perfil.apellido_paterno,
-            perfil.apellido_materno,
-          ]
-            .filter(Boolean)
-            .join(' '),
-          nombres: perfil.nombres || '',
-          fecha_nacimiento: perfil.fecha_nacimiento || '',
-          correo: perfil.correo || '',
-          telefono: perfil.telefono || '',
-        });
+        setCliente(desdePerfil(perfil));
 
         setCargaPerfil('listo');
       } catch (e) {
@@ -399,20 +438,7 @@ export default function Reserva({ paqueteId, salidaId }) {
               try {
                 const perfil = await pedir('/portal-cliente/perfil');
 
-                setCliente({
-                  tipo_documento: perfil.tipo_documento || '',
-                  nro_documento: perfil.numero_documento || '',
-                  apellidos: [
-                    perfil.apellido_paterno,
-                    perfil.apellido_materno,
-                  ]
-                    .filter(Boolean)
-                    .join(' '),
-                  nombres: perfil.nombres || '',
-                  fecha_nacimiento: perfil.fecha_nacimiento || '',
-                  correo: perfil.correo || '',
-                  telefono: perfil.telefono || '',
-                });
+                setCliente(desdePerfil(perfil));
 
                 setFalloPerfil('');
                 setCargaPerfil('listo');
@@ -440,15 +466,8 @@ export default function Reserva({ paqueteId, salidaId }) {
   const cupos = salida ? Number(salida[C.cupos]) : 0;
   const fechaSalida = salida?.[C.fecha];
 
-  const hoy = new Date();
-  const hoyISO = [
-    hoy.getFullYear(),
-    String(hoy.getMonth() + 1).padStart(2, '0'),
-    String(hoy.getDate()).padStart(2, '0'),
-  ].join('-');
-
   const fechaPasada =
-    fechaSalida && String(fechaSalida).slice(0, 10) < hoyISO;
+    fechaSalida && String(fechaSalida).slice(0, 10) < hoyISO();
 
   const bloqueada =
     !salida ||
@@ -530,8 +549,13 @@ export default function Reserva({ paqueteId, salidaId }) {
         vistos.add(clave);
       }
 
-      if (!noVacio(p.apellidos)) {
-        n[pre + 'apellidos'] = 'Escribe los apellidos.';
+      if (!noVacio(p.apellido_paterno)) {
+        n[pre + 'apellido_paterno'] = 'Escribe el apellido paterno.';
+      }
+
+      // Con DNI el apellido materno es obligatorio (como en el registro de cuenta).
+      if (p.tipo_documento === 'DNI' && !noVacio(p.apellido_materno)) {
+        n[pre + 'apellido_materno'] = 'Escribe el apellido materno.';
       }
 
       if (!noVacio(p.nombres)) {
@@ -587,7 +611,7 @@ export default function Reserva({ paqueteId, salidaId }) {
 
     if (Object.keys(n).length || excede) {
       if (excede) {
-        setFallo('La cantidad de personas supera los cupos disponibles.');
+        setFallo(MSG_EXCEDE);
       }
       return;
     }
@@ -601,11 +625,11 @@ export default function Reserva({ paqueteId, salidaId }) {
         const body = {
           salida_id: salida[C.id],
           modo_titular: modoTitular,
-          acompanantes: acomp,
+          acompanantes: acomp.map(conApellidos),
         };
 
         if (modoTitular === 'manual') {
-          body.cliente = clienteManual;
+          body.cliente = conApellidos(clienteManual);
         } else {
           // Enviar la fecha ingresada en el formulario.
           // Los demás datos siguen siendo obtenidos del perfil en backend.
@@ -621,8 +645,8 @@ export default function Reserva({ paqueteId, salidaId }) {
       } else {
         r = await crearReserva({
           salida_id: salida[C.id],
-          cliente,
-          acompanantes: acomp,
+          cliente: conApellidos(cliente),
+          acompanantes: acomp.map(conApellidos),
         });
       }
 
@@ -733,10 +757,17 @@ export default function Reserva({ paqueteId, salidaId }) {
 
                   <div className="vp-fila">
                     <Campo
-                      etiqueta="Apellidos"
-                      value={cliente.apellidos}
+                      etiqueta="Apellido paterno"
+                      value={cliente.apellido_paterno}
                       disabled
-                      error={err['c.apellidos']}
+                      error={err['c.apellido_paterno']}
+                    />
+
+                    <Campo
+                      etiqueta="Apellido materno"
+                      value={cliente.apellido_materno}
+                      disabled
+                      error={err['c.apellido_materno']}
                     />
 
                     <Campo
@@ -745,10 +776,13 @@ export default function Reserva({ paqueteId, salidaId }) {
                       disabled
                       error={err['c.nombres']}
                     />
+                  </div>
 
+                  <div className="vp-fila">
                     <Campo
                       etiqueta="Fecha de nacimiento"
                       type="date"
+                      max={hoyISO()}
                       value={cliente.fecha_nacimiento}
                       onChange={setCampoC('fecha_nacimiento')}
                       error={err['c.fecha_nacimiento']}
@@ -889,10 +923,15 @@ export default function Reserva({ paqueteId, salidaId }) {
           <button
             type="button"
             className="vp-btn vp-btn--borde"
-            disabled={restantes <= 0 || acomp.length >= 20}
-            onClick={() =>
-              setAcomp([...acomp, persona()])
-            }
+            disabled={acomp.length >= 20}
+            onClick={() => {
+              if (restantes <= 0) {
+                setFallo(MSG_EXCEDE);
+                return;
+              }
+              setFallo('');
+              setAcomp([...acomp, persona()]);
+            }}
           >
             Agregar acompañante
           </button>

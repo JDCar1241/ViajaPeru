@@ -30,7 +30,13 @@ const buscarPersona = (tipo) => async (req, res, next) => {
 
     const p = await consultarPersona(tipo, numero);
     if (!p) return res.json({ encontrado: false });
-    res.json({ encontrado: true, nombres: p.nombres, apellidos: p.apellidos });
+    res.json({
+      encontrado: true,
+      nombres: p.nombres,
+      apellidos: p.apellidos,
+      apellido_paterno: p.apellido_paterno,
+      apellido_materno: p.apellido_materno,
+    });
   } catch (e) {
     if (e instanceof ErrorServicio) {
       console.error(`Consulta de ${tipo} falló:`, e.message);

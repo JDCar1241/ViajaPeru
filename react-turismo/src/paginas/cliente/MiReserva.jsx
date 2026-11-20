@@ -78,6 +78,12 @@ export default function MiReserva() {
   const [esperandoTarjeta, setEsperandoTarjeta] = useState(false);
   const [correo, setCorreo] = useState('');
 
+  // Saldo a favor (HU: si el cliente tiene saldo puede usarlo y se gasta todo lo posible)
+  const [saldo, setSaldo] = useState(0);
+  const [usarSaldo, setUsarSaldo] = useState(false);
+
+  const [cancelando, setCancelando] = useState(false);
+
   // Identifica el intento de pago vigente. Si la persona cierra el formulario de Culqi,
   // Culqi no avisa: con "Cancelar" se invalida el intento y se libera el botón.
   const intento = useRef(0);
@@ -143,6 +149,25 @@ export default function MiReserva() {
     };
   }, [sesion, id]);
 
+  // Saldo a favor disponible (se recarga cuando cambia el estado de la reserva)
+  useEffect(() => {
+    if (!sesion) return;
+
+    let activo = true;
+
+    pedir('/portal-cliente/saldo')
+      .then((d) => {
+        if (activo) setSaldo(Number(d?.saldo_disponible) || 0);
+      })
+      .catch(() => {
+        if (activo) setSaldo(0);
+      });
+
+    return () => {
+      activo = false;
+    };
+  }, [sesion, reserva?.estado]);
+
   if (!sesion) {
     return (
       <main className="mr-pagina">
@@ -157,13 +182,24 @@ export default function MiReserva() {
 
   const totalSoles = Math.round(Number(reserva?.total || 0) * 100);
 
-  const totalDolares = tipoCambio
-    ? Math.round(totalSoles / tipoCambio)
+  // Saldo que se aplicará (en céntimos): todo el posible, sin pasar del total.
+  const saldoCent = Math.round(saldo * 100);
+  const saldoAplicado = usarSaldo ? Math.min(saldoCent, totalSoles) : 0;
+  const restoSoles = totalSoles - saldoAplicado; // lo que se paga con tarjeta
+  const soloSaldo = usarSaldo && restoSoles === 0;
+
+  const restoDolares = tipoCambio
+    ? Math.round(restoSoles / tipoCambio)
     : 0;
 
   const montoMostrado = monedaPago === 'USD'
-    ? dolares(totalDolares)
-    : moneda(totalSoles / 100);
+    ? dolares(restoDolares)
+    : moneda(restoSoles / 100);
+
+  // Cancelación: solo reservas pagadas y hasta 48 horas antes del viaje.
+  const inicioViaje = new Date(reserva?.fecha_inicio_viaje || reserva?.fecha_salida || 0).getTime();
+  const faltanMenosDe48h = inicioViaje - Date.now() <= 48 * 60 * 60 * 1000;
+  const pagadaConSaldo = Number(reserva?.saldo_utilizado || 0) > 0;
 
   const estadoActual = String(reserva?.estado || '').toLowerCase();
   const pendiente = estadoActual === 'pendiente';
@@ -203,8 +239,37 @@ export default function MiReserva() {
       return;
     }
 
-    if (metodoPago === 'Yape') {
+    if (metodoPago === 'Yape' && !soloSaldo) {
       setError('Yape estará disponible próximamente. Todavía no se ha configurado tu QR personal.');
+      return;
+    }
+
+    // El saldo cubre todo el importe: no hace falta tarjeta.
+    if (soloSaldo) {
+      const miIntento = ++intento.current;
+
+      try {
+        setPagando(true);
+
+        const respuesta = await pedir(`/portal-cliente/reservas/${id}/pagar`, {
+          method: 'POST',
+          body: JSON.stringify({ usar_saldo: true }),
+        });
+
+        setMensaje(
+          `¡Pago realizado con tu saldo a favor! Se usaron ${moneda(respuesta?.saldo_utilizado ?? saldoAplicado / 100)}.`
+        );
+        setUsarSaldo(false);
+
+        await cargarReserva();
+      } catch (e) {
+        if (miIntento === intento.current) {
+          setError(e.message || 'No pudimos procesar el pago con tu saldo.');
+        }
+      } finally {
+        if (miIntento === intento.current) setPagando(false);
+      }
+
       return;
     }
 
@@ -223,7 +288,7 @@ export default function MiReserva() {
     try {
       setEsperandoTarjeta(true);
 
-      let montoFinal = totalSoles;
+      let montoFinal = restoSoles;
 
       if (monedaPago === 'USD') {
         const cambio = await pedir(
@@ -238,7 +303,7 @@ export default function MiReserva() {
         }
 
         setTipoCambio(tcActual);
-        montoFinal = Math.round(totalSoles / tcActual);
+        montoFinal = Math.round(restoSoles / tcActual);
 
         if (montoFinal <= 0) {
           throw new Error('El importe convertido a dólares no es válido.');
@@ -263,6 +328,7 @@ export default function MiReserva() {
           body: JSON.stringify({
             token,
             moneda: monedaPago,
+            usar_saldo: usarSaldo,
           }),
         }
       );
@@ -270,8 +336,13 @@ export default function MiReserva() {
       setMensaje(
         `¡Pago realizado correctamente! ${
           respuesta?.mensaje || 'Tu reserva está pagada.'
+        }${
+          respuesta?.saldo_utilizado > 0
+            ? ` Se usaron ${moneda(respuesta.saldo_utilizado)} de tu saldo a favor.`
+            : ''
         }`
       );
+      setUsarSaldo(false);
 
       await cargarReserva();
     } catch (e) {
@@ -294,6 +365,42 @@ export default function MiReserva() {
     intento.current++;
     setEsperandoTarjeta(false);
     setPagando(false);
+  }
+
+  // Solo reservas pagadas. El importe vuelve como saldo a favor (no en efectivo).
+  async function cancelarReserva() {
+    setError('');
+    setMensaje('');
+
+    const confirmar = window.confirm(
+      `¿Seguro que quieres cancelar esta reserva?\n\n` +
+      `Se liberarán los cupos y ${moneda(reserva.total)} se acreditarán como saldo a favor ` +
+      `para tus próximas reservas en ViajaPerú. El saldo no es canjeable por dinero.\n\n` +
+      `Esta acción no se puede deshacer.`
+    );
+
+    if (!confirmar) return;
+
+    try {
+      setCancelando(true);
+
+      const r = await pedir(`/portal-cliente/reservas/${id}/cancelar`, {
+        method: 'POST',
+        body: JSON.stringify({}),
+      });
+
+      setMensaje(
+        Number(r?.saldo_acreditado) > 0
+          ? `Reserva cancelada. Se acreditaron ${moneda(r.saldo_acreditado)} a tu saldo a favor. Te enviamos la confirmación por correo.`
+          : 'Reserva cancelada correctamente.'
+      );
+
+      await cargarReserva();
+    } catch (e) {
+      setError(e.message || 'No pudimos cancelar la reserva.');
+    } finally {
+      setCancelando(false);
+    }
   }
 
   const nombrePaquete =
@@ -469,6 +576,53 @@ export default function MiReserva() {
                     <h3>Realiza tu pago</h3>
                     <p>Selecciona tu medio de pago y moneda.</p>
 
+                    {saldo > 0 && (
+                      <label className="mr-saldo-opcion">
+                        <input
+                          type="checkbox"
+                          checked={usarSaldo}
+                          onChange={(e) => {
+                            setUsarSaldo(e.target.checked);
+                            setError('');
+                            setMensaje('');
+                          }}
+                          disabled={pagando || esperandoTarjeta}
+                        />
+                        <span>
+                          Usar mi saldo a favor ({moneda(saldo)})
+                          {usarSaldo && (
+                            <small>
+                              Se usarán {moneda(saldoAplicado / 100)}.{' '}
+                              {soloSaldo
+                                ? 'Tu saldo cubre todo el importe: no necesitas tarjeta.'
+                                : `Pagarás ${moneda(restoSoles / 100)} con tarjeta.`}
+                            </small>
+                          )}
+                        </span>
+                      </label>
+                    )}
+
+                    {soloSaldo && (
+                      <>
+                        <div className="mr-cobro">
+                          <span>Importe a cobrar con tarjeta</span>
+                          <strong>{moneda(0)}</strong>
+                        </div>
+
+                        <button
+                          type="button"
+                          className="mr-boton mr-boton-pagar"
+                          onClick={pagar}
+                          disabled={pagando}
+                        >
+                          {pagando ? 'Procesando pago...' : 'Pagar con mi saldo a favor →'}
+                        </button>
+                      </>
+                    )}
+
+                    {!soloSaldo && (
+                    <>
+
                     <label>Medio de pago</label>
 
                     <div className="mr-opciones">
@@ -600,6 +754,8 @@ export default function MiReserva() {
                         </small>
                       </div>
                     )}
+                    </>
+                    )}
                   </div>
                 ) : pagada ? (
                   <div className="mr-pago-completo">
@@ -612,6 +768,30 @@ export default function MiReserva() {
                     >
                       Ver mi comprobante
                     </a>
+
+                    {pagadaConSaldo ? (
+                      <small className="mr-nota-cancelar">
+                        Esta reserva se pagó con saldo a favor: para cancelarla comunícate con ViajaPerú.
+                      </small>
+                    ) : faltanMenosDe48h ? (
+                      <small className="mr-nota-cancelar">
+                        Ya no es posible cancelarla: faltan menos de 48 horas para el viaje.
+                      </small>
+                    ) : (
+                      <>
+                        <button
+                          type="button"
+                          className="mr-boton mr-boton-cancelar"
+                          onClick={cancelarReserva}
+                          disabled={cancelando}
+                        >
+                          {cancelando ? 'Cancelando...' : 'Cancelar reserva'}
+                        </button>
+                        <small className="mr-nota-cancelar">
+                          Puedes cancelar hasta 48 horas antes del viaje. El importe vuelve como saldo a favor.
+                        </small>
+                      </>
+                    )}
                   </div>
                 ) : (
                   <div className="mr-pago-completo mr-pago-cancelado">

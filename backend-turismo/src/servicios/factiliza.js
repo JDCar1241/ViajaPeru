@@ -40,9 +40,13 @@ export async function consultarPersona(tipo, numero) {
   const d = r.cuerpo?.data;
   if (!r.ok || !d) throw new ErrorServicio(`Factiliza respondió ${r.estado}: ${JSON.stringify(r.cuerpo)}`);
 
+  const apellidoPaterno = String(d.apellido_paterno || '').trim();
+  const apellidoMaterno = String(d.apellido_materno || '').trim();
   const datos = {
     nombres: String(d.nombres || '').trim(),
-    apellidos: [d.apellido_paterno, d.apellido_materno].map((x) => String(x || '').trim()).filter(Boolean).join(' '),
+    apellido_paterno: apellidoPaterno,
+    apellido_materno: apellidoMaterno,
+    apellidos: [apellidoPaterno, apellidoMaterno].filter(Boolean).join(' '),
   };
   if (!datos.nombres && !datos.apellidos) return null;
 

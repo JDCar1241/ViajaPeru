@@ -18,6 +18,11 @@ import MisReservas from './paginas/cliente/MisReservas.jsx';
 import MiReserva from './paginas/cliente/MiReserva.jsx';
 import { useSesion } from './servicios/auth.js';
 import ComprobanteCliente from './paginas/cliente/ComprobanteCliente.jsx';
+import CuentaConfirmada from './paginas/publico/CuentaConfirmada.jsx';
+
+// Vuelta desde el enlace de confirmación del correo (Supabase pone el token o el error en el hash)
+const esRetornoDeConfirmacion = (hash) =>
+  /(^#|&)access_token=/.test(hash) || /(^#|&)error_code=/.test(hash);
 
 const ANIO = new Date().getFullYear();
 
@@ -46,7 +51,10 @@ export default function App() {
 
     let vista;
 
-  if (miReserva) {
+  if (esRetornoDeConfirmacion(hash)) {
+    // Vuelta desde el enlace de confirmación del correo (Supabase)
+    vista = <CuentaConfirmada />;
+  } else if (miReserva) {
     vista = esCliente
       ? <MiReserva key={hash} />
       : <Inicio />;

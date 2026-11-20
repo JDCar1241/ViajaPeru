@@ -139,7 +139,7 @@ async function comprobarPropiedad(req, reservaId) {
 
   let consulta = supabase
     .from('reservas')
-    .select('id, cliente_id, creado_por')
+    .select('id, cliente_id, creado_por, estado')
     .eq('id', reservaId);
 
   consulta = aplicarFiltroPropiedad(
@@ -380,7 +380,25 @@ router.get('/reservas/:id/tipo-cambio', async (req, res, next) => {
   }
 });
 
+// Saldo a favor disponible del cliente (0 si no tiene registro de cliente o de saldo).
+async function saldoDisponible(clienteId) {
+  if (!clienteId) return 0;
+
+  const { data, error } = await supabase
+    .from('saldos_cliente')
+    .select('saldo_disponible')
+    .eq('cliente_id', clienteId)
+    .maybeSingle();
+
+  if (error) throw error;
+
+  return Number(data?.saldo_disponible || 0);
+}
+
 // POST /api/portal-cliente/reservas/:id/pagar
+// { token?, moneda?: 'PEN' | 'USD', usar_saldo?: boolean }
+// Con usar_saldo se gasta TODO el saldo posible (hasta el total de la reserva).
+// Si el saldo cubre el total no hace falta tarjeta; si no, el resto se cobra con tarjeta.
 router.post('/reservas/:id/pagar', limitarPago, async (req, res, next) => {
   let cargoId = null;
   let centimos = 0;
@@ -413,10 +431,7 @@ router.post('/reservas/:id/pagar', limitarPago, async (req, res, next) => {
 
     const token = txt(req.body?.token);
     const moneda = req.body?.moneda || 'PEN';
-
-    if (!/^tkn_[A-Za-z0-9_]{4,60}$/.test(token)) {
-      return fallo(res, 400, 'El token de tarjeta no es válido.');
-    }
+    const usarSaldo = req.body?.usar_saldo === true;
 
     if (!MONEDAS.includes(moneda)) {
       return fallo(res, 400, 'Selecciona soles o dólares.');
@@ -449,127 +464,155 @@ router.post('/reservas/:id/pagar', limitarPago, async (req, res, next) => {
       return fallo(res, 400, 'El importe de la reserva no es válido.');
     }
 
-    const email =
-      txt(propiedad.usuario.perfil.correo) ||
-      txt(req.usuario.correo);
+    // ---- Saldo a favor: se usa todo lo posible, sin pasar del total ----
+    const totalCent = Math.round(total * 100);
+    const clienteId = propiedad.usuario.clienteId;
+    let saldoCent = 0;
 
-    if (!email) {
-      return fallo(res, 400, 'Tu cuenta necesita un correo para pagar.');
+    if (usarSaldo) {
+      const saldo = await saldoDisponible(clienteId);
+      saldoCent = Math.min(Math.round(saldo * 100), totalCent);
+
+      if (saldoCent <= 0) {
+        return fallo(res, 400, 'No tienes saldo a favor disponible.');
+      }
     }
 
+    const restoCent = totalCent - saldoCent; // lo que se cobra con tarjeta (en soles)
+
+    // ---- Tarjeta (solo si queda algo por pagar) ----
     let tc = null;
-    centimos = Math.round(total * 100);
+    let cargo = null;
 
-    if (moneda === 'USD') {
-      tc = await tipoCambioUsd();
-
-      if (!tc) {
-        return fallo(res, 503, 'El tipo de cambio no está configurado.');
+    if (restoCent > 0) {
+      if (!/^tkn_[A-Za-z0-9_]{4,60}$/.test(token)) {
+        return fallo(res, 400, 'El token de tarjeta no es válido.');
       }
 
-      centimos = Math.round(centimos / tc);
+      const email =
+        txt(propiedad.usuario.perfil.correo) ||
+        txt(req.usuario.correo);
 
-      if (centimos <= 0) {
-        return fallo(res, 400, 'El importe en dólares es demasiado pequeño.');
+      if (!email) {
+        return fallo(res, 400, 'Tu cuenta necesita un correo para pagar.');
       }
-    }
 
-    let cargo;
+      centimos = restoCent;
 
-    try {
-      cargo = await crearCargo({
-        centimos,
-        moneda,
-        email,
-        tokenId: token,
-        descripcion: `Pago de reserva ${id}`,
-        reservaId: id,
-        metadata: {
-          origen: 'portal_cliente',
-          usuario_id: req.usuario.id,
-          ...(tc ? { tipo_cambio: String(tc) } : {}),
-        },
-      });
-    } catch (e) {
-      if (e instanceof ErrorPasarela) {
-        if (e.detalle?.sin_respuesta) {
-          console.error(
-            'Culqi no respondió. Revisar su panel antes de reintentar.',
-            id,
-            e.detalle
-          );
+      if (moneda === 'USD') {
+        tc = await tipoCambioUsd();
 
-          return fallo(res, 504, e.message);
+        if (!tc) {
+          return fallo(res, 503, 'El tipo de cambio no está configurado.');
         }
 
-        console.error('Culqi rechazó el cargo:', e.detalle || e);
+        centimos = Math.round(centimos / tc);
 
-        return fallo(res, 402, e.message);
+        if (centimos <= 0) {
+          return fallo(res, 400, 'El importe en dólares es demasiado pequeño.');
+        }
       }
 
-      throw e;
-    }
-
-    cargoId = cargo?.id || null;
-
-    if (
-      !cargoId ||
-      (cargo.outcome && cargo.outcome.type !== 'venta_exitosa')
-    ) {
-      console.error('Cargo no aprobado:', JSON.stringify(cargo));
-
-      if (cargoId) {
-        await devolverCargo();
-      }
-
-      return fallo(res, 402, 'El pago con tarjeta no fue aprobado.');
-    }
-
-    const monedaCargo = String(
-      cargo.currency || cargo.currency_code || ''
-    ).toUpperCase();
-
-    const montoCargo = Number(cargo.amount);
-
-    const montoDifiere =
-      !Number.isFinite(montoCargo) || montoCargo !== centimos;
-
-    const monedaDifiere =
-      monedaCargo !== '' && monedaCargo !== moneda;
-
-    if (montoDifiere || monedaDifiere) {
-      console.error('El cargo no coincide con lo solicitado:', {
-        solicitado: { centimos, moneda },
-        recibido: {
-          id: cargoId,
-          amount: cargo.amount,
-          currency: monedaCargo,
-        },
-      });
-
-      await devolverCargo();
-
-      return fallo(
-        res,
-        502,
-        'El cobro no coincidió con lo solicitado. Revisa tu reserva antes de intentar nuevamente.'
-      );
-    }
-
-    const { data: pago, error: errPago } = await supabase.rpc(
-      'registrar_pago',
-      {
-        p_reserva_id: id,
-        p_pagos: [
-          {
-            metodo: 'Tarjeta',
-            monto: total,
-            referencia: cargoId,
+      try {
+        cargo = await crearCargo({
+          centimos,
+          moneda,
+          email,
+          tokenId: token,
+          descripcion: `Reserva ${reserva.codigo || id}`.slice(0, 80),
+          reservaId: id,
+          metadata: {
+            origen: 'portal_cliente',
+            usuario_id: req.usuario.id,
+            ...(tc ? { tipo_cambio: String(tc) } : {}),
+            ...(saldoCent ? { saldo_usado: String(saldoCent / 100) } : {}),
           },
-        ],
-        p_cobrado_por: req.usuario.id,
+        });
+      } catch (e) {
+        if (e instanceof ErrorPasarela) {
+          if (e.detalle?.sin_respuesta) {
+            console.error(
+              'Culqi no respondió. Revisar su panel antes de reintentar.',
+              id,
+              e.detalle
+            );
+
+            return fallo(res, 504, e.message);
+          }
+
+          console.error('Culqi rechazó el cargo:', e.detalle || e);
+
+          return fallo(res, 402, e.message);
+        }
+
+        throw e;
       }
-    );
+
+      cargoId = cargo?.id || null;
+
+      if (
+        !cargoId ||
+        (cargo.outcome && cargo.outcome.type !== 'venta_exitosa')
+      ) {
+        console.error('Cargo no aprobado:', JSON.stringify(cargo));
+
+        if (cargoId) {
+          await devolverCargo();
+        }
+
+        return fallo(res, 402, 'El pago con tarjeta no fue aprobado.');
+      }
+
+      const monedaCargo = String(
+        cargo.currency || cargo.currency_code || ''
+      ).toUpperCase();
+
+      const montoCargo = Number(cargo.amount);
+
+      const montoDifiere =
+        !Number.isFinite(montoCargo) || montoCargo !== centimos;
+
+      const monedaDifiere =
+        monedaCargo !== '' && monedaCargo !== moneda;
+
+      if (montoDifiere || monedaDifiere) {
+        console.error('El cargo no coincide con lo solicitado:', {
+          solicitado: { centimos, moneda },
+          recibido: {
+            id: cargoId,
+            amount: cargo.amount,
+            currency: monedaCargo,
+          },
+        });
+
+        await devolverCargo();
+
+        return fallo(
+          res,
+          502,
+          'El cobro no coincidió con lo solicitado. Revisa tu reserva antes de intentar nuevamente.'
+        );
+      }
+    }
+
+    // ---- Registrar el pago (si falla con un cargo ya hecho, se devuelve el dinero) ----
+    const lineaTarjeta = cargoId
+      ? [{ metodo: 'Tarjeta', monto: restoCent / 100, referencia: cargoId }]
+      : [];
+
+    const { data: pago, error: errPago } = saldoCent > 0
+      ? await supabase.rpc('registrar_pago_con_saldo', {
+          p_reserva_id: id,
+          p_cliente_id: clienteId,
+          p_monto_saldo: saldoCent / 100,
+          p_pagos: lineaTarjeta,
+          p_cobrado_por: req.usuario.id,
+        })
+      : await supabase.rpc('registrar_pago', {
+          p_reserva_id: id,
+          p_pagos: lineaTarjeta,
+          p_cobrado_por: req.usuario.id,
+        });
 
     if (errPago) {
       await devolverCargo();
@@ -587,35 +630,48 @@ router.post('/reservas/:id/pagar', limitarPago, async (req, res, next) => {
         return fallo(res, 409, 'La reserva ya no está pendiente de pago.');
       }
 
+      if (mensaje.includes('SALDO_INSUFICIENTE')) {
+        return fallo(res, 409, 'Tu saldo a favor cambió. Revisa el importe e inténtalo de nuevo.');
+      }
+
       if (mensaje.includes('MONTO_NO_COINCIDE')) {
         return fallo(res, 400, 'El importe de la reserva cambió.');
       }
 
       if (
         mensaje.includes('DATOS_INVALIDOS') ||
+        mensaje.includes('MONTO_SALDO_INVALIDO') ||
         errPago.code === '23514'
       ) {
         return fallo(res, 400, 'Los datos del pago no son válidos.');
       }
 
+      // La función del saldo no existe: falta ejecutar supabase/07-pagar-con-saldo.sql
+      if (errPago.code === 'PGRST202') {
+        console.error('Falta la función registrar_pago_con_saldo en la base.');
+        return fallo(res, 503, 'El pago con saldo no está disponible en este momento.');
+      }
+
       throw errPago;
     }
 
-    const { error: errMoneda } = await supabase
-      .from('pago_detalles')
-      .update({
-        moneda,
-        monto_moneda: centimos / 100,
-        tipo_cambio: tc,
-      })
-      .eq('referencia', cargoId);
+    if (cargoId) {
+      const { error: errMoneda } = await supabase
+        .from('pago_detalles')
+        .update({
+          moneda,
+          monto_moneda: centimos / 100,
+          tipo_cambio: tc,
+        })
+        .eq('referencia', cargoId);
 
-    if (errMoneda) {
-      console.error(
-        'El pago quedó registrado, pero no se pudo guardar la moneda.',
-        cargoId,
-        errMoneda
-      );
+      if (errMoneda) {
+        console.error(
+          'El pago quedó registrado, pero no se pudo guardar la moneda.',
+          cargoId,
+          errMoneda
+        );
+      }
     }
 
     return res.status(201).json({
@@ -623,11 +679,10 @@ router.post('/reservas/:id/pagar', limitarPago, async (req, res, next) => {
       pago,
       reserva_id: id,
       estado: 'Pagada',
-      tarjeta: {
-        moneda,
-        monto: centimos / 100,
-        tipo_cambio: tc,
-      },
+      saldo_utilizado: saldoCent / 100,
+      tarjeta: cargoId
+        ? { moneda, monto: centimos / 100, tipo_cambio: tc }
+        : null,
     });
   } catch (e) {
     next(e);
@@ -652,7 +707,7 @@ router.get('/reservas/:id', async (req, res, next) => {
     // Obtener las fechas directamente de la tabla reservas.
     const { data: datosReserva, error: errDatos } = await supabase
       .from('reservas')
-      .select('id, estado, total, num_personas, creado_en, pagada_en')
+      .select('id, estado, total, num_personas, creado_en, pagada_en, saldo_utilizado, saldo_acreditado')
       .eq('id', id)
       .maybeSingle();
 
@@ -682,6 +737,8 @@ router.get('/reservas/:id', async (req, res, next) => {
       personas: datosReserva.num_personas,
       creado_en: datosReserva.creado_en,
       pagada_en: datosReserva.pagada_en,
+      saldo_utilizado: Number(datosReserva.saldo_utilizado || 0),
+      saldo_acreditado: Number(datosReserva.saldo_acreditado || 0),
     });
   } catch (e) {
     next(e);
@@ -819,7 +876,7 @@ router.post('/reservas', async (req, res, next) => {
       const mensaje = error.message || '';
 
       if (mensaje.includes('CUPOS_INSUFICIENTES')) {
-        return fallo(res, 409, 'No hay cupos suficientes en esta salida.');
+        return fallo(res, 409, 'La cantidad de pasajeros excede la capacidad disponible del paquete.');
       }
 
       if (mensaje.includes('SALIDA_NO_DISPONIBLE')) {
@@ -872,7 +929,17 @@ router.post('/reservas/:id/cancelar', async (req, res, next) => {
       return fallo(res, 404, propiedad.error);
     }
 
-    const { usuario } = propiedad;
+    const { usuario, reserva } = propiedad;
+
+    // Regla del negocio: desde el portal solo se cancelan reservas YA PAGADAS
+    // (el importe vuelve como saldo a favor). Una pendiente simplemente no se paga.
+    if (reserva.estado === 'Cancelada') {
+      return fallo(res, 409, 'Esta reserva ya se encuentra cancelada.');
+    }
+
+    if (reserva.estado !== 'Pagada') {
+      return fallo(res, 409, 'Solo puedes cancelar reservas que ya fueron pagadas.');
+    }
 
     // El cliente_id procede del perfil autenticado.
     if (!usuario.clienteId) {
@@ -880,6 +947,16 @@ router.post('/reservas/:id/cancelar', async (req, res, next) => {
         res,
         400,
         'No se encontró el registro de cliente asociado a tu cuenta.'
+      );
+    }
+
+    // La base acredita el saldo al TITULAR de la reserva. Si la cuenta reservó para otra
+    // persona, ese saldo no sería de la cuenta: se atiende por ViajaPerú.
+    if (reserva.cliente_id !== usuario.clienteId) {
+      return fallo(
+        res,
+        409,
+        'Esta reserva está a nombre de otro titular. Para cancelarla, comunícate con ViajaPerú.'
       );
     }
 
