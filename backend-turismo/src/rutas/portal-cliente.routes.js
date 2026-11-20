@@ -1019,6 +1019,20 @@ router.post('/reservas/:id/cancelar', async (req, res, next) => {
           currency: 'PEN',
         });
 
+      // Solo una reserva PAGADA genera saldo. En una pendiente la base devuelve
+      // saldo_disponible = null: mostrar "S/ 0.00" sería falso si el cliente ya tenía saldo.
+      const seccionSaldo = acreditado > 0
+        ? `
+          <h3>Saldo a favor generado</h3>
+          <p><strong>Importe acreditado:</strong> ${formatoSoles(acreditado)}</p>
+          <p><strong>Saldo disponible después de la cancelación:</strong> ${formatoSoles(saldoDisponible)}</p>
+
+          <p>Este saldo es válido exclusivamente en ViajaPerú, no tiene fecha de vencimiento
+          y podrás utilizarlo en futuras reservas.</p>
+
+          <p>No es canjeable por dinero en efectivo ni transferible.</p>`
+        : '<p>Como la reserva aún no estaba pagada, no se generó saldo a favor.</p>';
+
       const html = `
         <div style="font-family:Arial,sans-serif;color:#243247;max-width:600px;margin:auto">
           <h2 style="color:#1456D6">Cancelación de reserva confirmada</h2>
@@ -1031,14 +1045,7 @@ router.post('/reservas/:id/cancelar', async (req, res, next) => {
           <p><strong>Fecha de viaje:</strong> ${fechaViaje}</p>
           <p><strong>Fecha de cancelación:</strong> ${escaparHtml(fechaCancelacion)}</p>
 
-          <h3>Saldo a favor generado</h3>
-          <p><strong>Importe acreditado:</strong> ${formatoSoles(acreditado)}</p>
-          <p><strong>Saldo disponible después de la cancelación:</strong> ${formatoSoles(saldoDisponible)}</p>
-
-          <p>Este saldo es válido exclusivamente en ViajaPerú, no tiene fecha de vencimiento
-          y podrás utilizarlo en futuras reservas.</p>
-
-          <p>No es canjeable por dinero en efectivo ni transferible.</p>
+          ${seccionSaldo}
 
           <p>Gracias por confiar en ViajaPerú.</p>
         </div>
