@@ -1,5 +1,6 @@
 import { useEffect, useRef, useState } from 'react';
 import './cobros.css';
+import './comprobante.css';
 import { pedir } from '../../servicios/api.js';
 import { useSesion } from '../../servicios/auth.js';
 import { soles, cent } from '../../utils/moneda.js';
@@ -25,6 +26,9 @@ export default function Cobrar({ id }) {
   const [enviando, setEnviando] = useState(false);
   const [esperandoTarjeta, setEsperandoTarjeta] = useState(false);
   const [recibo, setRecibo] = useState(null);
+  // Comprobante que se emite y envía solo al registrar el pago (HU-007)
+  const [tipoComp, setTipoComp] = useState('Boleta'); // Boleta (a nombre del titular) | Factura
+  const [fac, setFac] = useState({ ruc: '', razon: '', direccion: '' });
   const intento = useRef(0); // identifica el intento de cobro vigente (para poder cancelar)
 
   const cargar = () => {
@@ -64,7 +68,22 @@ export default function Cobrar({ id }) {
         </p>
       )}
       {recibo.vuelto > 0 && <div className="cb-vuelto-grande"><small>Entrega de vuelto</small>{soles(recibo.vuelto / 100)}</div>}
-      <p className="cb-botones"><a className="btn" href={'#/comprobante/' + id}>Emitir comprobante</a><a className="btn sec" href="#/cobros">Cobrar otra reserva</a></p>
+      {recibo.comprobante ? (
+        <p className={'aviso ' + (recibo.comprobante.correo ? 'aviso--ok' : '')} style={{ margin: '24px 0' }}>
+          {recibo.comprobante.tipo} {recibo.comprobante.serie}-{String(recibo.comprobante.numero).padStart(8, '0')} emitida
+          {recibo.comprobante.correo
+            ? <> y enviada a <strong>{recibo.comprobante.correo}</strong>.</>
+            : '. El cliente no tiene correo: entrégale el comprobante impreso.'}
+        </p>
+      ) : (
+        <p className="aviso aviso--error" style={{ margin: '24px 0' }}>
+          El pago quedó registrado, pero no se pudo emitir el comprobante automáticamente. Emítelo ahora.
+        </p>
+      )}
+      <p className="cb-botones">
+        <a className="btn" href={'#/comprobante/' + id}>{recibo.comprobante ? 'Ver o imprimir comprobante' : 'Emitir comprobante'}</a>
+        <a className="btn sec" href="#/cobros">Cobrar otra reserva</a>
+      </p>
     </main>
   );
 
@@ -91,7 +110,13 @@ export default function Cobrar({ id }) {
     }
     return '';
   };
-  const valido = falta === 0 && lineas.every((l) => !errLinea(l)) && (!lineaTarjeta || esCorreo(correo));
+  const errFactura = tipoComp !== 'Factura' ? {} : {
+    ...(!/^\d{11}$/.test(fac.ruc.trim()) ? { ruc: 'El RUC debe tener 11 dígitos.' } : {}),
+    ...(!fac.razon.trim() ? { razon: 'Escribe la razón social.' } : {}),
+    ...(!fac.direccion.trim() ? { direccion: 'Escribe la dirección fiscal.' } : {}),
+  };
+  const valido = falta === 0 && lineas.every((l) => !errLinea(l)) && (!lineaTarjeta || esCorreo(correo))
+    && Object.keys(errFactura).length === 0;
   const setL = (i, k) => (e) => setLineas(lineas.map((l, j) => (j === i ? { ...l, [k]: e.target.value } : l)));
 
   async function cobrar() {
@@ -120,6 +145,9 @@ export default function Cobrar({ id }) {
         method: 'POST',
         body: JSON.stringify({
           email: lineaTarjeta ? correo.trim() : undefined,
+          comprobante: tipoComp === 'Factura'
+            ? { tipo: 'Factura', comprador: { tipo_documento: 'RUC', numero_documento: fac.ruc.trim(), nombre: fac.razon.trim(), direccion: fac.direccion.trim() } }
+            : { tipo: 'Boleta' },
           pagos: lineas.map((l) => ({
             metodo: l.metodo,
             medio: l.metodo === 'QR' ? l.medio : undefined,
@@ -131,7 +159,7 @@ export default function Cobrar({ id }) {
           })),
         }),
       });
-      setRecibo({ total, vuelto, tarjeta: resp?.tarjeta });
+      setRecibo({ total, vuelto, tarjeta: resp?.tarjeta, comprobante: resp?.comprobante || null });
     } catch (ex) {
       if (miIntento !== intento.current) return;
       setFallo(ex.message || 'No pudimos registrar el pago.');
@@ -203,6 +231,38 @@ export default function Cobrar({ id }) {
           )}
 
           <button type="button" className="btn sec" disabled={falta <= 0} onClick={() => setLineas([...lineas, nueva((falta / 100).toFixed(2))])}>Agregar otro método</button>
+
+          <h2 style={{ marginTop: 40 }}>Comprobante</h2>
+          <p className="muted" style={{ marginTop: -8 }}>
+            Se emite al registrar el pago y se envía al correo del cliente
+            {r.cliente?.correo ? <> (<strong>{r.cliente.correo}</strong>)</> : ' (no tiene correo: se entrega impreso)'}.
+          </p>
+          <fieldset className="cp-tipos">
+            <legend className="sr-only">Tipo de comprobante</legend>
+            {[
+              ['Boleta', 'Boleta', `A nombre de ${r.cliente.nombres} ${r.cliente.apellidos}`],
+              ['Factura', 'Factura', 'Con RUC y razón social'],
+            ].map(([v, t, d]) => (
+              <label key={v} className={'cp-tipo' + (tipoComp === v ? ' sel' : '')}>
+                <input type="radio" name="tipoComp" value={v} checked={tipoComp === v} onChange={() => setTipoComp(v)} />
+                <strong>{t}</strong><span>{d}</span>
+              </label>
+            ))}
+          </fieldset>
+          {tipoComp === 'Factura' && (
+            <div className="cp-campos">
+              <label className="fld">RUC
+                <input inputMode="numeric" maxLength={11} value={fac.ruc} onChange={(e) => setFac({ ...fac, ruc: e.target.value.replace(/\D/g, '') })} placeholder="20123456789" />
+                {fac.ruc && errFactura.ruc && <span className="cb-error">{errFactura.ruc}</span>}
+              </label>
+              <label className="fld lg">Razón social
+                <input maxLength={200} value={fac.razon} onChange={(e) => setFac({ ...fac, razon: e.target.value })} />
+              </label>
+              <label className="fld lg">Dirección fiscal
+                <input maxLength={250} value={fac.direccion} onChange={(e) => setFac({ ...fac, direccion: e.target.value })} />
+              </label>
+            </div>
+          )}
         </section>
 
         <aside className="panel">

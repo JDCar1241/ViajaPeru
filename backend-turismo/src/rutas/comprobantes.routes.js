@@ -12,7 +12,7 @@ const DOCS_BOLETA = ['DNI', 'CE', 'Pasaporte'];
 const doc = (v) => txt(v).replace(/\s+/g, '').toUpperCase();
 
 // Devuelve { error } o { comprador } (comprador puede ser null en la boleta simple)
-function validarComprador(tipo, c) {
+export function validarComprador(tipo, c) {
   const hay = c && typeof c === 'object' && txt(c.numero_documento) !== '';
   if (tipo === 'Factura') {
     if (!hay) return { error: 'La factura necesita RUC, razón social y dirección.' };

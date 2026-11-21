@@ -110,11 +110,33 @@ export function enviarEnSegundoPlano(comprobanteId, destinatario = null) {
     console.error(`Comprobante ${comprobanteId}: no se pudo enviar por correo:`, e.message || e));
 }
 
-// Para usar después de un pago en línea: emite la boleta (se espera, es rápido) y la envía
-// por correo en segundo plano. Nunca lanza errores: el pago ya quedó registrado.
-export async function emitirYEnviarComprobante(reservaId, emitidoPor = null) {
+// Emite el comprobante elegido por el personal (factura o boleta con otro comprador).
+async function emitirElegido(reservaId, tipo, comprador, emitidoPor) {
+  const { data, error } = await supabase.rpc('emitir_comprobante', {
+    p_reserva_id: reservaId,
+    p_tipo: tipo,
+    p_comprador: comprador,
+    p_emitido_por: emitidoPor,
+  });
+  if (error) {
+    if ((error.message || '').includes('COMPROBANTE_YA_EMITIDO') || error.code === '23505') {
+      const { data: existente } = await supabase.rpc('comprobante_de_reserva', { p_reserva_id: reservaId });
+      return existente;
+    }
+    throw error;
+  }
+  return data;
+}
+
+// Para usar después de un pago (en línea o presencial): emite el comprobante (se espera, es rápido)
+// y lo envía por correo en segundo plano. Nunca lanza errores: el pago ya quedó registrado.
+//   elegido: { tipo: 'Boleta' | 'Factura', comprador } -> lo que eligió el personal en caja.
+//   Sin "elegido" (o boleta sin comprador): boleta a nombre del titular.
+export async function emitirYEnviarComprobante(reservaId, emitidoPor = null, elegido = null) {
   try {
-    const comp = await emitirBoletaAutomatica(reservaId, emitidoPor);
+    const comp = elegido?.comprador
+      ? await emitirElegido(reservaId, elegido.tipo, elegido.comprador, emitidoPor)
+      : await emitirBoletaAutomatica(reservaId, emitidoPor);
     if (comp?.id) enviarEnSegundoPlano(comp.id);
     return comp;
   } catch (e) {

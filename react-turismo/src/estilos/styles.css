@@ -167,3 +167,6 @@ td .btn{min-height:38px;font-size:14px}
 .tarjeta .nota{margin:20px 0 0;font-size:14px}
 .acciones{display:flex;flex-wrap:wrap;gap:12px;margin-top:24px}
 @media (max-width:640px){.datos{grid-template-columns:1fr}.acciones .btn{flex:1 1 100%}}
+
+/* Texto solo para lectores de pantalla */
+.sr-only{position:absolute;width:1px;height:1px;padding:0;margin:-1px;overflow:hidden;clip:rect(0,0,0,0);white-space:nowrap;border:0}

@@ -3,6 +3,8 @@ import { supabase } from '../config/supabase.js';
 import { requiereSesion, fallo } from '../middlewares/auth.middleware.js';
 import { crearCargo, reembolsar, ErrorPasarela } from '../config/culqi.js';
 import { ROLES_CAJA as ROLES, idValido } from '../utils/comunes.js';
+import { validarComprador } from './comprobantes.routes.js';
+import { emitirYEnviarComprobante } from '../servicios/comprobante-digital.js';
 
 const router = Router();
 const ESTADOS = ['Pendiente', 'Pagada', 'Cancelada'];
@@ -109,6 +111,17 @@ router.post('/:id/pagos', requiereSesion(ROLES), async (req, res, next) => {
       pagos.push(p);
     }
 
+    // Comprobante que se emitirá al terminar (HU-007). Se valida ANTES de cobrar:
+    //   { tipo: 'Boleta' } -> boleta a nombre del titular | { tipo: 'Factura', comprador: { RUC... } }
+    const pedidoComp = req.body?.comprobante ?? { tipo: 'Boleta' };
+    if (!['Boleta', 'Factura'].includes(pedidoComp?.tipo)) return fallo(res, 400, 'El tipo de comprobante no es válido.');
+    let elegido = null;
+    if (pedidoComp.tipo === 'Factura' || pedidoComp.comprador) {
+      const v = validarComprador(pedidoComp.tipo, pedidoComp.comprador);
+      if (v.error) return fallo(res, 400, v.error);
+      elegido = { tipo: pedidoComp.tipo, comprador: v.comprador };
+    }
+
     // Validar la reserva ANTES de cobrar la tarjeta
     const { data: reserva, error: eRes } = await supabase.rpc('obtener_reserva', { p_id: id });
     if (eRes) throw eRes;
@@ -209,9 +222,17 @@ router.post('/:id/pagos', requiereSesion(ROLES), async (req, res, next) => {
       if (eMon) console.error('No se pudo guardar la moneda del cobro', cargo.id, eMon);
     }
 
+    // HU-007: el comprobante se emite solo y se envía al correo del cliente (en segundo plano).
+    // Si fallara, el pago ya quedó registrado y se puede emitir a mano desde Cobros.
+    const comp = await emitirYEnviarComprobante(id, req.usuario.id, elegido);
+    const { data: filaCorreo } = await supabase.from('reservas').select('clientes(correo)').eq('id', id).maybeSingle();
+
     res.status(201).json({
       ...data,
       tarjeta: cargo ? { moneda: tarjeta.moneda, monto: centimos / 100, tipo_cambio: tc } : undefined,
+      comprobante: comp
+        ? { id: comp.id, tipo: comp.tipo, serie: comp.serie, numero: comp.numero, correo: filaCorreo?.clientes?.correo || null }
+        : null,
     });
   } catch (e) { next(e); }
 });
