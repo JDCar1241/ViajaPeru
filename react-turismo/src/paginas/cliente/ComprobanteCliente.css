@@ -8,14 +8,14 @@
 .cc-volver {
   display: inline-block;
   margin-bottom: 20px;
-  color: #176b57;
+  color: var(--blue);
   text-decoration: none;
   font-weight: 600;
 }
 
 .cc-documento {
   background: white;
-  border: 1px solid #e5e7eb;
+  border: 1px solid var(--line);
   border-radius: 14px;
   padding: 35px;
   box-shadow: 0 5px 20px rgba(0,0,0,.06);
@@ -23,12 +23,12 @@
 
 .cc-cabecera {
   text-align: center;
-  border-bottom: 1px solid #e5e7eb;
+  border-bottom: 1px solid var(--line);
   padding-bottom: 25px;
 }
 
 .cc-etiqueta {
-  color: #176b57;
+  color: var(--blue);
   font-weight: 800;
   letter-spacing: 3px;
 }
@@ -47,12 +47,12 @@
   align-items: center;
   gap: 10px;
   margin: 25px 0;
-  color: #176b57;
+  color: var(--blue);
   font-weight: 700;
 }
 
 .cc-estado span {
-  background: #e3f6ec;
+  background: var(--ok-bg);
   border-radius: 50%;
   padding: 5px 10px;
 }
@@ -62,7 +62,7 @@
   grid-template-columns: repeat(2, 1fr);
   gap: 20px;
   padding-bottom: 25px;
-  border-bottom: 1px solid #e5e7eb;
+  border-bottom: 1px solid var(--line);
 }
 
 .cc-datos div {
@@ -72,12 +72,12 @@
 }
 
 .cc-datos small {
-  color: #6b7280;
+  color: var(--muted);
 }
 
 .cc-comprador {
   padding: 20px 0;
-  border-bottom: 1px solid #e5e7eb;
+  border-bottom: 1px solid var(--line);
 }
 
 .cc-comprador h3 {
@@ -97,20 +97,26 @@
 }
 
 .cc-total strong {
-  color: #176b57;
+  color: var(--blue);
   font-size: 24px;
 }
 
 .cc-descargar {
   width: 100%;
+  min-height: 48px;
   border: none;
-  border-radius: 9px;
-  padding: 15px;
-  background: #176b57;
+  border-radius: 999px;
+  padding: 0 26px;
+  font-family: "Figtree", sans-serif;
+  background: var(--blue);
   color: white;
   font-weight: 700;
   font-size: 15px;
   cursor: pointer;
+}
+
+.cc-descargar:hover:not(:disabled) {
+  background: var(--blue-d);
 }
 
 .cc-descargar:disabled {
@@ -121,7 +127,7 @@
 .cc-mensaje {
   padding: 30px;
   background: #fff;
-  border: 1px solid #e5e7eb;
+  border: 1px solid var(--line);
   border-radius: 12px;
 }
 
@@ -137,7 +143,7 @@
 
 .cc-error {
   margin: 12px 0 0;
-  color: #b42318;
+  color: var(--error);
   font-size: 14px;
   text-align: center;
 }

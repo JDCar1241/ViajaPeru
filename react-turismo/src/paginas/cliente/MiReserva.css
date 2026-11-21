@@ -1,9 +1,8 @@
 
 .mr-pagina {
-  min-height: 100vh;
-  padding: 35px 20px 60px;
-  background: #f3f7fb;
-  color: #18334b;
+  padding: 56px 32px 96px;
+  background: transparent;
+  color: var(--ink);
 }
 
 .mr-contenedor {
@@ -21,52 +20,48 @@
 
 .mr-regresar a,
 .mr-footer a {
-  color: #176b83;
+  color: var(--blue);
   font-weight: 750;
   text-decoration: none;
 }
 
 .mr-regresar span {
-  color: #91a0ae;
+  color: var(--muted);
   font-weight: 750;
   letter-spacing: 1px;
 }
 
 .mr-encabezado {
   display: flex;
-  align-items: center;
+  flex-wrap: wrap;
+  align-items: flex-end;
   justify-content: space-between;
-  gap: 20px;
-  padding: 32px;
-  border-radius: 19px;
-  background: linear-gradient(120deg, #102f50, #176b83);
-  color: white;
+  gap: 16px;
+  margin-bottom: 32px;
 }
 
 .mr-etiqueta {
   display: block;
-  margin-bottom: 9px;
-  color: #43a8aa;
-  font-size: 10px;
-  font-weight: 850;
-  letter-spacing: 1.5px;
+  margin-bottom: 8px;
+  color: var(--blue);
+  font-size: 12px;
+  font-weight: 700;
+  letter-spacing: .12em;
+  text-transform: uppercase;
 }
 
 .mr-encabezado .mr-etiqueta {
-  color: #8ee6e0;
+  color: var(--blue);
 }
 
 .mr-encabezado h1 {
   margin: 0;
-  color: white;
-  font-size: 32px;
-  font-weight: 850;
 }
 
 .mr-encabezado p {
-  margin: 9px 0 0;
-  color: #d9e9f1;
-  font-size: 13px;
+  margin: 8px 0 0;
+  color: var(--muted);
+  font-size: 16px;
 }
 
 .mr-estado {
@@ -88,18 +83,18 @@
 }
 
 .mr-pendiente {
-  background: #fff2d9;
-  color: #a66c08;
+  background: var(--warn-bg);
+  color: var(--warn);
 }
 
 .mr-pagada {
-  background: #e3f7ed;
-  color: #16824b;
+  background: var(--ok-bg);
+  color: var(--ok);
 }
 
 .mr-cancelada {
-  background: #fde8e8;
-  color: #b42318;
+  background: var(--error-bg);
+  color: var(--error);
 }
 
 .mr-destino {
@@ -108,7 +103,7 @@
   gap: 25px;
   margin: 22px 0;
   padding: 18px;
-  border: 1px solid #e3ebf1;
+  border: 1px solid var(--line);
   border-radius: 17px;
   background: white;
 }
@@ -120,31 +115,31 @@
   height: 135px;
   border-radius: 13px;
   object-fit: cover;
-  background: #e9eff5;
+  background: var(--bg);
 }
 
 .mr-foto-vacia {
   display: grid;
   place-items: center;
-  color: #82909e;
+  color: var(--muted);
   font-size: 12px;
 }
 
 .mr-destino-info h2 {
   margin: 5px 0 10px;
-  color: #183650;
+  color: var(--navy);
   font-size: 24px;
   font-weight: 850;
 }
 
 .mr-destino-info p {
   margin: 0;
-  color: #81909e;
+  color: var(--muted);
   font-size: 12px;
 }
 
 .mr-destino-info p strong {
-  color: #176b83;
+  color: var(--blue);
 }
 
 .mr-columnas {
@@ -161,24 +156,21 @@
 
 .mr-seccion,
 .mr-resumen-pago {
-  padding: 25px;
-  border: 1px solid #e3ebf1;
-  border-radius: 17px;
-  background: white;
-  box-shadow: 0 5px 18px #17334b08;
+  position: sticky;
+  top: 96px;
 }
 
 .mr-titulo-seccion h2,
 .mr-resumen-pago h2 {
   margin: 0;
-  color: #183650;
+  color: var(--navy);
   font-size: 19px;
   font-weight: 850;
 }
 
 .mr-titulo-seccion p {
   margin: 6px 0 20px;
-  color: #8493a1;
+  color: var(--muted);
   font-size: 12px;
 }
 
@@ -202,7 +194,7 @@
   width: 43px;
   height: 43px;
   border-radius: 12px;
-  background: #edf7f8;
+  background: var(--sky);
   font-size: 19px;
 }
 
@@ -214,14 +206,14 @@
 }
 
 .mr-info-titulo {
-  color: #91a0ad;
+  color: var(--muted);
   font-size: 10px;
   font-weight: 800;
   text-transform: uppercase;
 }
 
 .mr-info strong {
-  color: #30495e;
+  color: var(--navy);
   font-size: 12px;
   overflow-wrap: anywhere;
 }
@@ -236,7 +228,7 @@
   align-items: center;
   gap: 12px;
   padding: 12px;
-  border: 1px solid #edf1f4;
+  border: 1px solid var(--line);
   border-radius: 12px;
 }
 
@@ -246,8 +238,8 @@
   width: 38px;
   height: 38px;
   border-radius: 50%;
-  background: #e7f4f5;
-  color: #176b83;
+  background: var(--sky);
+  color: var(--blue);
   font-weight: 850;
 }
 
@@ -258,12 +250,12 @@
 }
 
 .mr-persona strong {
-  color: #30495e;
+  color: var(--navy);
   font-size: 13px;
 }
 
 .mr-persona div span {
-  color: #91a0ad;
+  color: var(--muted);
   font-size: 11px;
 }
 
@@ -281,12 +273,12 @@
   justify-content: space-between;
   gap: 12px;
   margin: 14px 0;
-  color: #81909e;
+  color: var(--muted);
   font-size: 12px;
 }
 
 .mr-total-linea strong {
-  color: #30495e;
+  color: var(--navy);
 }
 
 .mr-total-destacado {
@@ -296,39 +288,39 @@
   margin: 20px 0;
   padding: 19px;
   border-radius: 13px;
-  background: #edf7f8;
+  background: var(--sky);
 }
 
 .mr-total-destacado span {
-  color: #607b8d;
+  color: var(--texto);
   font-size: 11px;
 }
 
 .mr-total-destacado strong {
-  color: #176b83;
+  color: var(--blue);
   font-size: 27px;
   font-weight: 850;
 }
 
 .mr-total-destacado small {
-  color: #8295a2;
+  color: var(--muted);
   font-size: 10px;
 }
 
 .mr-pago {
   padding-top: 18px;
-  border-top: 1px solid #edf1f4;
+  border-top: 1px solid var(--line);
 }
 
 .mr-pago h3 {
   margin: 0 0 7px;
-  color: #183650;
+  color: var(--navy);
   font-size: 17px;
 }
 
 .mr-pago > p {
   margin: 0 0 17px;
-  color: #82909e;
+  color: var(--muted);
   font-size: 12px;
   line-height: 1.6;
 }
@@ -336,7 +328,7 @@
 .mr-pago label {
   display: block;
   margin: 14px 0 7px;
-  color: #52697c;
+  color: var(--texto);
   font-size: 11px;
   font-weight: 800;
 }
@@ -346,10 +338,10 @@
   width: 100%;
   min-height: 43px;
   padding: 10px 12px;
-  border: 1px solid #dce5ec;
+  border: 1px solid var(--line);
   border-radius: 9px;
   background: white;
-  color: #30495e;
+  color: var(--navy);
   font: inherit;
   font-size: 13px;
   outline: none;
@@ -357,16 +349,16 @@
 
 .mr-pago select:focus,
 .mr-pago input:focus {
-  border-color: #176b83;
-  box-shadow: 0 0 0 3px #176b8315;
+  border-color: var(--blue);
+  box-shadow: 0 0 0 3px rgba(20, 86, 214, .12);
 }
 
 .mr-cambio {
   margin-top: 9px;
   padding: 10px;
   border-radius: 8px;
-  background: #f2f7fa;
-  color: #61798c;
+  background: var(--bg);
+  color: var(--texto);
   font-size: 11px;
 }
 
@@ -379,12 +371,12 @@
 }
 
 .mr-cobro span {
-  color: #788b9b;
+  color: var(--muted);
   font-size: 12px;
 }
 
 .mr-cobro strong {
-  color: #087f83;
+  color: var(--blue);
   font-size: 20px;
   font-weight: 850;
 }
@@ -394,7 +386,7 @@
 }
 
 .mr-metodos > span {
-  color: #91a0ad;
+  color: var(--muted);
   font-size: 9px;
   font-weight: 850;
   letter-spacing: 1px;
@@ -412,17 +404,17 @@
   align-items: center;
   justify-content: center;
   padding: 9px 12px;
-  border: 1px solid #e3ebf1;
+  border: 1px solid var(--line);
   border-radius: 9px;
-  color: #40596d;
+  color: var(--texto);
   font-size: 11px;
   font-weight: 800;
 }
 
 .mr-metodo-yape {
-  border-color: #d9c9fa;
-  background: #f4efff;
-  color: #682cb7;
+  border-color: var(--line-d);
+  background: var(--sky);
+  color: var(--blue);
 }
 
 .mr-boton {
@@ -432,8 +424,8 @@
   min-height: 44px;
   padding: 12px 18px;
   border: 0;
-  border-radius: 10px;
-  background: #176b83;
+  border-radius: 999px;
+  background: var(--blue);
   color: white;
   font-size: 13px;
   font-weight: 800;
@@ -444,11 +436,11 @@
 .mr-boton-pagar {
   width: 100%;
   margin-top: 5px;
-  background: #087f83;
+  background: var(--blue);
 }
 
 .mr-boton:hover {
-  background: #10566c;
+  background: var(--blue-d);
 }
 
 .mr-boton:disabled {
@@ -459,7 +451,7 @@
 .mr-seguridad {
   display: block;
   margin-top: 13px;
-  color: #8998a5;
+  color: var(--muted);
   font-size: 10px;
   text-align: center;
 }
@@ -470,7 +462,7 @@
   align-items: center;
   padding: 22px 10px;
   border-radius: 12px;
-  background: #eaf8f0;
+  background: var(--ok-bg);
   text-align: center;
 }
 
@@ -481,48 +473,48 @@
   height: 42px;
   margin-bottom: 10px;
   border-radius: 50%;
-  background: #d3f1df;
-  color: #16824b;
+  background: var(--ok-bg);
+  color: var(--ok);
   font-size: 24px;
 }
 
 .mr-pago-completo strong {
-  color: #16824b;
+  color: var(--ok);
 }
 
 .mr-pago-completo p {
   margin: 7px 0 0;
-  color: #668a76;
+  color: var(--muted);
   font-size: 11px;
 }
 
 .mr-pago-cancelado {
-  background: #fdf0f0;
+  background: var(--error-bg);
 }
 
 .mr-pago-cancelado > span {
-  background: #fbd9d9;
-  color: #b42318;
+  background: var(--error-bg);
+  color: var(--error);
 }
 
 .mr-pago-cancelado strong {
-  color: #b42318;
+  color: var(--error);
 }
 
 .mr-pago-cancelado p {
-  color: #8a6666;
+  color: var(--muted);
 }
 
 .mr-boton-cancelar {
   width: 100%;
   margin-top: 8px;
-  border: 1px solid #176b83;
+  border: 1px solid var(--blue);
   background: white;
-  color: #176b83;
+  color: var(--blue);
 }
 
 .mr-boton-cancelar:hover {
-  background: #eef6f8;
+  background: var(--sky);
 }
 
 .mr-alerta {
@@ -533,13 +525,13 @@
 }
 
 .mr-alerta-exito {
-  background: #e7f7ee;
-  color: #16824b;
+  background: var(--ok-bg);
+  color: var(--ok);
 }
 
 .mr-alerta-error {
-  background: #fff0ed;
-  color: #bd4437;
+  background: var(--error-bg);
+  color: var(--error);
 }
 
 .mr-footer {
@@ -559,19 +551,19 @@
 }
 
 .mr-mensaje h2 {
-  color: #183650;
+  color: var(--navy);
 }
 
 .mr-mensaje p {
-  color: #82909e;
+  color: var(--muted);
   font-size: 13px;
 }
 
 .mr-spinner {
   width: 35px;
   height: 35px;
-  border: 4px solid #dcebef;
-  border-top-color: #176b83;
+  border: 4px solid var(--sky);
+  border-top-color: var(--blue);
   border-radius: 50%;
   animation: mr-girar 0.8s linear infinite;
 }
@@ -591,22 +583,8 @@
 }
 
 @media (max-width: 600px) {
-  .mr-pagina {
-    padding: 20px 12px 40px;
-  }
-
   .mr-regresar {
     flex-direction: column;
-  }
-
-  .mr-encabezado {
-    align-items: flex-start;
-    flex-direction: column;
-    padding: 24px 20px;
-  }
-
-  .mr-encabezado h1 {
-    font-size: 26px;
   }
 
   .mr-destino {
@@ -654,29 +632,29 @@
   align-items: flex-start;
   gap: 6px;
   padding: 15px;
-  border: 1px solid #d9e1e8;
+  border: 1px solid var(--line);
   border-radius: 12px;
   background: #fff;
-  color: #243447;
+  color: var(--navy);
   cursor: pointer;
   text-align: left;
   transition: border-color .2s, background .2s, transform .2s;
 }
 
 .mr-opcion:hover:not(:disabled) {
-  border-color: #16a085;
+  border-color: var(--blue);
   transform: translateY(-2px);
 }
 
 .mr-opcion:focus-visible {
-  outline: 3px solid rgba(22, 160, 133, .25);
+  outline: 3px solid rgba(20, 86, 214, .25);
   outline-offset: 2px;
 }
 
 .mr-opcion-activa {
-  border: 2px solid #159b78;
-  background: #eaf8f3;
-  color: #087453;
+  border: 2px solid var(--blue);
+  background: var(--sky);
+  color: var(--blue);
 }
 
 .mr-opcion > span {
@@ -689,7 +667,7 @@
 
 .mr-opcion small {
   font-size: 11px;
-  color: #687787;
+  color: var(--muted);
 }
 
 .mr-opcion:disabled {
@@ -717,32 +695,35 @@
 }
 
 /* Opción de usar el saldo a favor al pagar */
-.mr-saldo-opcion {
+.mr-pago .mr-saldo-opcion {
   display: flex;
   gap: 10px;
-  align-items: flex-start;
+  align-items: center;
   margin: 10px 0 14px;
+  line-height: 1.4;
   padding: 12px 14px;
-  border: 1px solid #b9e3d0;
+  border: 1px solid var(--ok-bg);
   border-radius: 10px;
-  background: #eefaf4;
-  color: #16603d;
+  background: var(--ok-bg);
+  color: var(--ok);
   font-size: 13px;
   font-weight: 700;
   cursor: pointer;
 }
 
-.mr-saldo-opcion input {
+.mr-pago .mr-saldo-opcion input {
   width: 18px;
   height: 18px;
   margin-top: 1px;
   flex-shrink: 0;
+  padding: 0;
+  accent-color: var(--ok);
 }
 
 .mr-saldo-opcion small {
   display: block;
   margin-top: 4px;
-  color: #3f7a5c;
+  color: var(--muted);
   font-weight: 500;
 }
 
@@ -750,7 +731,7 @@
 .mr-nota-cancelar {
   display: block;
   margin-top: 8px;
-  color: #668a76;
+  color: var(--muted);
   font-size: 11px;
   text-align: center;
 }
@@ -763,15 +744,21 @@
   display: grid;
   gap: 6px;
   font-size: 14px;
-  color: #3e4f64;
+  color: var(--texto);
 }
 
 .mr-boton-yape {
-  background: #742284;
-  border-color: #742284;
+  background: var(--blue);
+  border-color: var(--blue);
 }
 
 .mr-boton-yape:hover:not(:disabled) {
-  background: #5d1b6a;
+  background: var(--blue-d);
 }
 
+/* Celular: mismos márgenes que el resto de páginas */
+@media (max-width: 860px) {
+  .mr-pagina {
+    padding: 32px 16px 64px;
+  }
+}

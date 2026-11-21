@@ -112,7 +112,7 @@ export default function App() {
 
   return (
     <>
-      <header>
+      <header className="sitio">
         <a className="logo" href="#/">Viaja<span>Peru</span></a>
         <nav>
           <a href="#/paquetes">Paquetes</a>

@@ -1,0 +1,38 @@
+/* Cambiar contraseña (dos pasos con código por correo). Usa la paleta de styles.css */
+
+.cc-clave { max-width: 520px; }
+
+/* Indicador de pasos */
+.cc-pasos { display: flex; gap: 8px; margin: 0 0 20px; padding: 0; list-style: none; flex-wrap: wrap; }
+.cc-pasos li { display: flex; align-items: center; gap: 8px; font-size: 14px; font-weight: 600; color: var(--muted); }
+.cc-pasos li + li::before { content: ""; width: 24px; height: 1px; background: var(--line-d); margin-right: 0; }
+.cc-pasos span {
+  display: grid; place-items: center; width: 26px; height: 26px; border-radius: 50%;
+  background: var(--bg); border: 1px solid var(--line); font-size: 13px; font-weight: 700;
+}
+.cc-pasos li.actual { color: var(--navy); }
+.cc-pasos li.actual span { background: var(--blue); border-color: var(--blue); color: #fff; }
+.cc-pasos li.hecho span { background: var(--ok-bg); border-color: var(--ok-bg); color: var(--ok); }
+
+.cc-form { display: grid; gap: 16px; }
+.cc-form > .btn { width: 100%; margin-top: 4px; }
+
+/* Requisitos de la contraseña */
+.cc-requisitos { display: grid; gap: 4px; margin: -6px 0 0; padding: 0; list-style: none; font-size: 14px; color: var(--muted); }
+.cc-requisitos li { display: flex; align-items: center; gap: 6px; }
+.cc-requisitos li.ok { color: var(--ok); }
+
+/* Paso 2: código */
+.cc-explica { display: flex; gap: 10px; align-items: flex-start; margin: 0; padding: 12px 14px; border-radius: var(--radio-s); background: var(--sky); color: var(--navy); font-size: 15px; }
+.cc-explica .icono { margin-top: 2px; color: var(--blue); }
+.vp-campo input.cc-codigo { height: 56px; font-size: 28px; font-weight: 700; letter-spacing: .5em; text-align: center; font-variant-numeric: tabular-nums; }
+.cc-secundarias { display: flex; justify-content: space-between; gap: 12px; flex-wrap: wrap; }
+.cc-enlace { padding: 0; border: 0; background: none; font: 600 14px "Figtree", sans-serif; color: var(--blue); cursor: pointer; }
+.cc-enlace:disabled { color: var(--muted); cursor: default; }
+.cc-enlace:not(:disabled):hover { text-decoration: underline; }
+
+/* Paso 3: listo */
+.cc-listo { display: grid; justify-items: center; gap: 8px; text-align: center; padding: 8px 0; }
+.cc-listo h2 { margin: 8px 0 0; font-size: 22px; }
+.cc-listo p { margin: 0 0 12px; }
+.cc-listo__icono { display: grid; place-items: center; width: 56px; height: 56px; border-radius: 50%; background: var(--ok-bg); color: var(--ok); }

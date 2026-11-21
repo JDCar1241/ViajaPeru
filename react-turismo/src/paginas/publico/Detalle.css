@@ -8,7 +8,7 @@
   max-width: 1120px;
   margin: 0 auto;
   padding: 24px 0 70px;
-  color: #0F1B2D;
+  color: var(--ink);
 }
 
 /* Volver al catálogo */
@@ -18,7 +18,7 @@
   align-items: center;
   gap: 8px;
   margin-bottom: 22px;
-  color: #1456D6;
+  color: var(--blue);
   font-size: 14px;
   font-weight: 700;
   text-decoration: none;
@@ -26,7 +26,7 @@
 }
 
 .detalle-page .volver:hover {
-  color: #0A2540;
+  color: var(--navy);
 }
 
 /* Imagen principal */
@@ -35,7 +35,7 @@
   width: 100%;
   overflow: hidden;
   border-radius: 22px;
-  background: #EAF2FF;
+  background: var(--sky);
   box-shadow: 0 12px 35px rgba(10, 37, 64, .10);
 }
 
@@ -45,14 +45,14 @@
   height: 420px;
   object-fit: cover;
   border-radius: 22px;
-  background: #EAF2FF;
+  background: var(--sky);
 }
 
 .detalle-page .detalle-sin-foto {
   display: flex;
   align-items: center;
   justify-content: center;
-  color: #55657A;
+  color: var(--muted);
   font-weight: 600;
 }
 
@@ -69,7 +69,7 @@
 .detalle-etiqueta {
   display: inline-block;
   margin-bottom: 10px;
-  color: #1456D6;
+  color: var(--blue);
   font-size: 11px;
   font-weight: 800;
   letter-spacing: 2px;
@@ -77,7 +77,7 @@
 
 .detalle-page .detalle-titulo h1 {
   margin: 0 0 12px;
-  color: #0A2540;
+  color: var(--navy);
   font-size: clamp(28px, 4vw, 42px);
   line-height: 1.12;
 }
@@ -91,22 +91,22 @@
   flex-shrink: 0;
   min-width: 190px;
   padding: 19px 24px;
-  border: 1px solid #DCE4EF;
+  border: 1px solid var(--line);
   border-radius: 17px;
-  background: #F7FAFF;
+  background: var(--bg);
   text-align: center;
 }
 
 .detalle-precio small {
   display: block;
   margin-bottom: 5px;
-  color: #55657A;
+  color: var(--muted);
   font-size: 12px;
   font-weight: 600;
 }
 
 .detalle-precio strong {
-  color: #1456D6;
+  color: var(--blue);
   font-size: 27px;
   font-weight: 800;
 }
@@ -125,7 +125,7 @@
 .detalle-page .detalle-panel {
   margin-bottom: 28px;
   padding: 25px;
-  border: 1px solid #E1E8F2;
+  border: 1px solid var(--line);
   border-radius: 18px;
   background: #fff;
   box-shadow: 0 5px 20px rgba(10, 37, 64, .045);
@@ -146,15 +146,15 @@
   align-items: center;
   justify-content: center;
   border-radius: 10px;
-  background: #EAF2FF;
-  color: #1456D6;
+  background: var(--sky);
+  color: var(--blue);
   font-size: 12px;
   font-weight: 800;
 }
 
 .detalle-page .detalle-titulo-seccion h2 {
   margin: 0;
-  color: #0A2540;
+  color: var(--navy);
   font-size: 18px;
   font-weight: 800;
 }
@@ -169,7 +169,7 @@
 .detalle-page .timeline li {
   gap: 18px;
   padding: 0 0 24px 22px;
-  border-left: 2px solid #DCE8FA;
+  border-left: 2px solid var(--line-d);
 }
 
 .detalle-page .timeline li::before {
@@ -177,9 +177,9 @@
   top: 3px;
   width: 12px;
   height: 12px;
-  background: #1456D6;
+  background: var(--blue);
   border: 2px solid #fff;
-  box-shadow: 0 0 0 2px #DCE8FA;
+  box-shadow: 0 0 0 2px var(--line-d);
 }
 
 .detalle-page .timeline li:last-child {
@@ -188,12 +188,12 @@
 
 .detalle-page .timeline strong {
   min-width: 65px;
-  color: #1456D6;
+  color: var(--blue);
   font-size: 14px;
 }
 
 .detalle-page .timeline span {
-  color: #35465B;
+  color: var(--texto);
   font-size: 14px;
   line-height: 1.65;
 }
@@ -202,7 +202,7 @@
 
 .detalle-page .detalle-aclaraciones {
   margin: 0;
-  color: #55657A;
+  color: var(--muted);
   font-size: 14px;
   line-height: 1.8;
 }
@@ -227,14 +227,14 @@
   justify-content: space-between;
   gap: 12px;
   padding: 17px;
-  border: 1px solid #E1E8F2;
+  border: 1px solid var(--line);
   border-radius: 13px;
-  background: #FAFCFF;
+  background: var(--bg);
   transition: border-color .2s, transform .2s;
 }
 
 .detalle-salida:hover {
-  border-color: #AFC8F5;
+  border-color: var(--line-d);
   transform: translateY(-2px);
 }
 
@@ -245,24 +245,24 @@
 }
 
 .detalle-salida-info small {
-  color: #718096;
+  color: var(--muted);
   font-size: 11px;
   font-weight: 600;
 }
 
 .detalle-salida-info strong {
-  color: #0A2540;
+  color: var(--navy);
   font-size: 15px;
 }
 
 .detalle-cupos {
-  color: #16834A;
+  color: var(--ok);
   font-size: 12px;
   font-weight: 700;
 }
 
 .detalle-agotado {
-  color: #C24141;
+  color: var(--error);
   font-size: 12px;
   font-weight: 700;
 }
@@ -273,7 +273,7 @@
   min-height: 40px;
   padding: 0 19px;
   border-radius: 10px;
-  background: #1456D6;
+  background: var(--blue);
   color: white;
   font-size: 13px;
   font-weight: 700;
@@ -281,7 +281,7 @@
 }
 
 .detalle-page .detalle-btn:hover:not(:disabled) {
-  background: #0F44AD;
+  background: var(--blue-d);
   transform: translateY(-1px);
 }
 
@@ -293,7 +293,7 @@
 .detalle-vacio {
   padding: 20px;
   border-radius: 12px;
-  background: #F7FAFF;
+  background: var(--bg);
   font-size: 14px;
   text-align: center;
 }
@@ -365,7 +365,7 @@
 .detalle-precio-usd {
   display: block;
   margin-top: 6px;
-  color: #16834a;
+  color: var(--ok);
   font-size: 21px;
   font-weight: 800;
 }
@@ -373,13 +373,13 @@
 .detalle-tipo-cambio {
   display: block;
   margin-top: 6px;
-  color: #718096;
+  color: var(--muted);
   font-size: 11px;
 }
 
 .detalle-tipo-cambio-info {
   display: block;
   margin-top: 8px;
-  color: #718096;
+  color: var(--muted);
   font-size: 11px;
 }

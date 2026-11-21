@@ -2,6 +2,7 @@
 import { useCallback, useEffect, useState } from 'react';
 import { pedir } from '../../servicios/api.js';
 import './MisReservas.css';
+import Icono from '../../componentes/Icono.jsx';
 
 const moneda = (valor) =>
   new Intl.NumberFormat('es-PE', {
@@ -124,15 +125,11 @@ export default function MisReservas() {
               desde un solo lugar.
             </p>
           </div>
-
-          <div className="mc-icono-viaje" aria-hidden="true">
-            <span>✈</span>
-          </div>
         </header>
 
         {/* SALDO A FAVOR */}
         <div className="mc-saldo">
-          <div className="mc-saldo-icono">💰</div>
+          <div className="mc-saldo-icono"><Icono nombre="billetera" tamano={26} /></div>
 
           <div className="mc-saldo-contenido">
             <span className="mc-saldo-etiqueta">MI SALDO A FAVOR</span>
@@ -167,7 +164,7 @@ export default function MisReservas() {
 
         <div className="mc-resumen">
           <div className="mc-resumen-texto">
-            <span className="mc-resumen-icono">🌎</span>
+            <span className="mc-resumen-icono"><Icono nombre="globo" tamano={24} /></span>
             <div>
               <strong>Tus próximas aventuras</strong>
               <p>Todo empieza con un nuevo destino.</p>
@@ -205,7 +202,7 @@ export default function MisReservas() {
 
         {estado === 'ok' && reservas.length === 0 && (
           <div className="mc-mensaje mc-vacio">
-            <div className="mc-vacio-icono">🧳</div>
+            <div className="mc-vacio-icono"><Icono nombre="maleta" tamano={32} /></div>
             <h2>Aún no tienes reservas</h2>
             <p>
               Cuando reserves un paquete, aparecerá aquí toda la información
@@ -268,7 +265,7 @@ export default function MisReservas() {
                         <h3>{nombrePaquete(r)}</h3>
 
                         <span className="mc-fecha">
-                          <span>📅</span>
+                          <Icono nombre="calendario" tamano={16} />
                           {fecha(r.fecha_inicio_viaje || r.fecha_salida)}
                         </span>
                       </div>
@@ -283,7 +280,7 @@ export default function MisReservas() {
                       <div className="mc-dato">
                         <span>VIAJEROS</span>
                         <strong>
-                          <span>👥</span>
+                          <Icono nombre="personas" tamano={16} />
                           {r.num_personas || r.personas || 1}
                         </strong>
                       </div>
@@ -320,7 +317,7 @@ export default function MisReservas() {
                         }`}
                         href={`#/mi-reserva/${r.id}`}
                       >
-                        {pendiente ? '💳 Pagar ahora' : 'Ver detalle'}
+                        {pendiente ? 'Pagar ahora' : 'Ver detalle'}
                         <span>→</span>
                       </a>
                     </div>

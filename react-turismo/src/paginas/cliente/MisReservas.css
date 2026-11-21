@@ -1,69 +1,38 @@
 
 .mc-pagina {
-  min-height: 100vh;
-  padding: 48px 22px 65px;
-  background: #f3f7fb;
-  color: #172b43;
+  padding: 56px 32px 96px;
+  background: transparent;
+  color: var(--ink);
 }
 
 .mc-contenedor {
-  width: min(1080px, 100%);
+  width: min(1120px, 100%);
   margin: 0 auto;
 }
 
 .mc-encabezado {
-  display: flex;
-  justify-content: space-between;
-  align-items: center;
-  gap: 25px;
-  padding: 38px 42px;
-  border-radius: 22px;
-  background: linear-gradient(120deg, #102f50, #176b83);
-  color: white;
-  overflow: hidden;
-  position: relative;
+  margin-bottom: 32px;
 }
 
 .mc-etiqueta {
-  display: inline-block;
-  margin-bottom: 12px;
-  color: #8ee6e0;
-  font-size: 11px;
-  font-weight: 800;
-  letter-spacing: 2px;
+  display: block;
+  margin-bottom: 8px;
+  color: var(--blue);
+  font-size: 12px;
+  font-weight: 700;
+  letter-spacing: .12em;
+  text-transform: uppercase;
 }
 
 .mc-encabezado h1 {
   margin: 0;
-  color: white;
-  font-size: clamp(30px, 4vw, 42px);
-  font-weight: 800;
-  letter-spacing: -1px;
 }
 
 .mc-encabezado p {
-  max-width: 560px;
-  margin: 12px 0 0;
-  color: #d8e8f1;
-  font-size: 15px;
-  line-height: 1.7;
-}
-
-.mc-icono-viaje {
-  display: grid;
-  place-items: center;
-  flex: 0 0 112px;
-  width: 112px;
-  height: 112px;
-  border: 1px solid #ffffff38;
-  border-radius: 50%;
-  background: #ffffff13;
-  transform: rotate(-12deg);
-}
-
-.mc-icono-viaje span {
-  color: white;
-  font-size: 55px;
+  max-width: 640px;
+  margin: 8px 0 0;
+  color: var(--muted);
+  font-size: 16px;
 }
 
 .mc-resumen {
@@ -73,7 +42,7 @@
   gap: 20px;
   margin: 26px 0 34px;
   padding: 20px 24px;
-  border: 1px solid #e2eaf1;
+  border: 1px solid var(--line);
   border-radius: 16px;
   background: white;
 }
@@ -90,18 +59,18 @@
   width: 46px;
   height: 46px;
   border-radius: 13px;
-  background: #e9f7f7;
+  background: var(--sky);
   font-size: 23px;
 }
 
 .mc-resumen-texto strong {
-  color: #183650;
+  color: var(--navy);
   font-size: 15px;
 }
 
 .mc-resumen-texto p {
   margin: 4px 0 0;
-  color: #7b8998;
+  color: var(--muted);
   font-size: 13px;
 }
 
@@ -110,9 +79,9 @@
   align-items: center;
   gap: 12px;
   padding: 11px 16px;
-  border: 1px solid #cfe3e9;
-  border-radius: 10px;
-  color: #176b83;
+  border: 1px solid var(--line-d);
+  border-radius: 999px;
+  color: var(--blue);
   font-size: 13px;
   font-weight: 750;
   text-decoration: none;
@@ -120,8 +89,8 @@
 }
 
 .mc-boton-secundario:hover {
-  background: #edf8fa;
-  border-color: #176b83;
+  background: var(--sky);
+  border-color: var(--blue);
 }
 
 .mc-lista-encabezado {
@@ -133,14 +102,14 @@
 
 .mc-lista-encabezado h2 {
   margin: 0;
-  color: #183650;
+  color: var(--navy);
   font-size: 22px;
   font-weight: 800;
 }
 
 .mc-lista-encabezado p {
   margin: 6px 0 0;
-  color: #82909e;
+  color: var(--muted);
   font-size: 13px;
 }
 
@@ -151,16 +120,16 @@
 
 .mc-tarjeta {
   padding: 24px 26px 20px;
-  border: 1px solid #e3eaf0;
+  border: 1px solid var(--line);
   border-radius: 17px;
   background: white;
-  box-shadow: 0 5px 18px #17334b08;
+  box-shadow: 0 5px 18px rgba(10, 37, 64, .05);
   transition: transform 0.2s ease, box-shadow 0.2s ease;
 }
 
 .mc-tarjeta:hover {
   transform: translateY(-2px);
-  box-shadow: 0 10px 26px #17334b12;
+  box-shadow: 0 10px 26px rgba(10, 37, 64, .08);
 }
 
 .mc-tarjeta-superior {
@@ -176,7 +145,7 @@
   width: 58px;
   height: 58px;
   border-radius: 15px;
-  background: linear-gradient(135deg, #e5f5f5, #e9effc);
+  background: var(--sky);
   font-size: 28px;
 }
 
@@ -186,7 +155,7 @@
 }
 
 .mc-reserva-numero {
-  color: #8a9aa8;
+  color: var(--muted);
   font-size: 10px;
   font-weight: 800;
   letter-spacing: 1.1px;
@@ -194,7 +163,7 @@
 
 .mc-destino h3 {
   margin: 5px 0;
-  color: #173650;
+  color: var(--navy);
   font-size: 19px;
   font-weight: 800;
   overflow-wrap: anywhere;
@@ -204,7 +173,7 @@
   display: inline-flex;
   align-items: center;
   gap: 7px;
-  color: #738494;
+  color: var(--muted);
   font-size: 13px;
 }
 
@@ -227,23 +196,23 @@
 }
 
 .mc-estado-pagada {
-  background: #e7f7ee;
-  color: #16824b;
+  background: var(--ok-bg);
+  color: var(--ok);
 }
 
 .mc-estado-pendiente {
-  background: #fff4dc;
-  color: #a56a08;
+  background: var(--warn-bg);
+  color: var(--warn);
 }
 
 .mc-estado-cancelada {
-  background: #ffeded;
-  color: #bd3e3e;
+  background: var(--error-bg);
+  color: var(--error);
 }
 
 .mc-estado-otro {
-  background: #edf1f5;
-  color: #68798a;
+  background: var(--bg);
+  color: var(--muted);
 }
 
 .mc-tarjeta-detalles {
@@ -252,8 +221,8 @@
   gap: 15px;
   margin-top: 24px;
   padding: 18px 0;
-  border-top: 1px solid #edf1f4;
-  border-bottom: 1px solid #edf1f4;
+  border-top: 1px solid var(--line);
+  border-bottom: 1px solid var(--line);
 }
 
 .mc-dato {
@@ -263,14 +232,14 @@
 }
 
 .mc-dato > span {
-  color: #91a0ad;
+  color: var(--muted);
   font-size: 10px;
   font-weight: 800;
   letter-spacing: 0.9px;
 }
 
 .mc-dato strong {
-  color: #334b60;
+  color: var(--navy);
   font-size: 14px;
   font-weight: 750;
 }
@@ -280,7 +249,7 @@
 }
 
 .mc-dato .mc-precio {
-  color: #176b83;
+  color: var(--blue);
   font-size: 18px;
 }
 
@@ -293,7 +262,7 @@
 }
 
 .mc-pie-texto {
-  color: #7c8b99;
+  color: var(--muted);
   font-size: 12px;
   line-height: 1.5;
 }
@@ -306,8 +275,8 @@
   min-height: 42px;
   padding: 11px 18px;
   border: 0;
-  border-radius: 10px;
-  background: #176b83;
+  border-radius: 999px;
+  background: var(--blue);
   color: white;
   font-size: 13px;
   font-weight: 800;
@@ -317,17 +286,17 @@
 }
 
 .mc-boton-principal:hover {
-  background: #10566c;
+  background: var(--blue-d);
   color: white;
   transform: translateY(-1px);
 }
 
 .mc-boton-pagar {
-  background: #087f83;
+  background: var(--blue);
 }
 
 .mc-boton-pagar:hover {
-  background: #06666a;
+  background: var(--blue-d);
 }
 
 .mc-mensaje {
@@ -337,7 +306,7 @@
   justify-content: center;
   min-height: 270px;
   padding: 35px 22px;
-  border: 1px solid #e3eaf0;
+  border: 1px solid var(--line);
   border-radius: 18px;
   background: white;
   text-align: center;
@@ -345,14 +314,14 @@
 
 .mc-mensaje h2 {
   margin: 13px 0 6px;
-  color: #183650;
+  color: var(--navy);
   font-size: 21px;
 }
 
 .mc-mensaje p {
   max-width: 430px;
   margin: 5px 0 20px;
-  color: #788999;
+  color: var(--muted);
   font-size: 14px;
   line-height: 1.6;
 }
@@ -363,8 +332,8 @@
   width: 43px;
   height: 43px;
   border-radius: 50%;
-  background: #fff0ed;
-  color: #c64b3b;
+  background: var(--error-bg);
+  color: var(--error);
   font-size: 22px;
   font-weight: 800;
 }
@@ -377,8 +346,8 @@
   width: 35px;
   height: 35px;
   margin-bottom: 15px;
-  border: 4px solid #dcebef;
-  border-top-color: #176b83;
+  border: 4px solid var(--sky);
+  border-top-color: var(--blue);
   border-radius: 50%;
   animation: mc-girar 0.8s linear infinite;
 }
@@ -394,48 +363,21 @@
   justify-content: center;
   gap: 12px;
   margin-top: 35px;
-  color: #a0acb7;
+  color: var(--muted);
   font-size: 13px;
 }
 
 .mc-pie-pagina a {
-  color: #58758b;
+  color: var(--texto);
   text-decoration: none;
 }
 
 .mc-pie-pagina a:hover {
-  color: #087f83;
+  color: var(--blue);
   text-decoration: underline;
 }
 
 @media (max-width: 650px) {
-  .mc-pagina {
-    padding: 22px 13px 40px;
-  }
-
-  .mc-encabezado {
-    padding: 27px 23px;
-    border-radius: 17px;
-  }
-
-  .mc-encabezado h1 {
-    font-size: 29px;
-  }
-
-  .mc-encabezado p {
-    font-size: 13px;
-  }
-
-  .mc-icono-viaje {
-    flex-basis: 65px;
-    width: 65px;
-    height: 65px;
-  }
-
-  .mc-icono-viaje span {
-    font-size: 34px;
-  }
-
   .mc-resumen {
     align-items: flex-start;
     flex-direction: column;
@@ -474,9 +416,6 @@
 }
 
 @media (max-width: 380px) {
-  .mc-icono-viaje {
-    display: none;
-  }
 
   .mc-destino h3 {
     font-size: 16px;
@@ -493,7 +432,7 @@
   height: 85px;
   overflow: hidden;
   border-radius: 12px;
-  background: #e9eff5;
+  background: var(--bg);
 }
 
 .mc-destino-imagen img {
@@ -508,7 +447,7 @@
   height: 100%;
   display: grid;
   place-items: center;
-  color: #82909e;
+  color: var(--muted);
   font-size: 11px;
 }
 
@@ -521,15 +460,15 @@
 }
 /* Botón para pagar reservas pendientes */
 .mc-boton-pagar {
-  background: linear-gradient(135deg, #087f83, #0b9da0);
+  background: var(--blue);
   color: #fff;
-  box-shadow: 0 4px 12px #087f8330;
+  box-shadow: 0 4px 12px rgba(20, 86, 214, .2);
 }
 
 .mc-boton-pagar:hover {
-  background: linear-gradient(135deg, #06666a, #087f83);
+  background: var(--blue-d);
   color: #fff;
-  box-shadow: 0 6px 16px #087f8340;
+  box-shadow: 0 6px 16px rgba(20, 86, 214, .2);
   transform: translateY(-2px);
 }
 
@@ -550,9 +489,9 @@
   gap: 20px;
   padding: 24px 28px;
   margin: 28px 0;
-  border: 1px solid #dce7f5;
+  border: 1px solid var(--line);
   border-radius: 18px;
-  background: linear-gradient(120deg, #eef5ff, #ffffff);
+  background: #fff;
   box-shadow: 0 5px 18px rgba(10, 37, 64, 0.05);
 }
 
@@ -564,7 +503,7 @@
   width: 58px;
   height: 58px;
   border-radius: 16px;
-  background: #dceaff;
+  background: var(--sky);
   font-size: 27px;
 }
 
@@ -575,7 +514,7 @@
 .mc-saldo-etiqueta {
   display: block;
   margin-bottom: 5px;
-  color: #55657a;
+  color: var(--muted);
   font-size: 12px;
   font-weight: 800;
   letter-spacing: 1px;
@@ -583,14 +522,14 @@
 
 .mc-saldo-contenido h2 {
   margin: 0;
-  color: #1456d6;
+  color: var(--blue);
   font-size: 28px;
   font-weight: 800;
 }
 
 .mc-saldo-contenido p {
   margin: 5px 0 0;
-  color: #64748b;
+  color: var(--muted);
   font-size: 13px;
 }
 
@@ -600,16 +539,16 @@
   align-items: center;
   gap: 10px;
   margin-top: 7px;
-  color: #b42318;
+  color: var(--error);
   font-size: 13px;
 }
 
 .mc-saldo-error button {
   padding: 5px 10px;
-  border: 1px solid #b42318;
-  border-radius: 7px;
+  border: 1px solid var(--error);
+  border-radius: 999px;
   background: white;
-  color: #b42318;
+  color: var(--error);
   font-weight: 700;
   cursor: pointer;
 }
@@ -628,5 +567,12 @@
 
   .mc-saldo-contenido h2 {
     font-size: 23px;
+  }
+}
+
+/* Celular: mismos márgenes que el resto de páginas */
+@media (max-width: 860px) {
+  .mc-pagina {
+    padding: 32px 16px 64px;
   }
 }

@@ -6,7 +6,7 @@
   border: 0;
   border-radius: 18px;
   background: #fff;
-  color: #0A2540;
+  color: var(--navy);
   box-shadow: 0 24px 64px rgba(10, 37, 64, .28);
 }
 .vp-dialogo::backdrop { background: rgba(10, 37, 64, .55); }
@@ -22,7 +22,7 @@
 
 .vp-dialogo__caja { display: grid; gap: 14px; padding: 26px 24px 22px; }
 .vp-dialogo h2 { margin: 0; font-size: 20px; line-height: 1.25; }
-.vp-dialogo__cuerpo { display: grid; gap: 10px; color: #3E4F64; font-size: 15px; line-height: 1.5; }
+.vp-dialogo__cuerpo { display: grid; gap: 10px; color: var(--texto); font-size: 15px; line-height: 1.5; }
 .vp-dialogo__cuerpo p { margin: 0; }
 
 .vp-dialogo__botones { display: flex; justify-content: flex-end; gap: 10px; margin-top: 8px; flex-wrap: wrap; }
@@ -34,13 +34,13 @@
   cursor: pointer;
 }
 .vp-dialogo__botones button:disabled { opacity: .55; cursor: not-allowed; }
-.vp-dialogo__botones button:focus-visible { outline: 3px solid #1456D6; outline-offset: 2px; }
+.vp-dialogo__botones button:focus-visible { outline: 3px solid var(--blue); outline-offset: 2px; }
 
-.vp-dialogo__volver { background: #fff; color: #0A2540; border: 1px solid #C9D5E5; }
-.vp-dialogo__volver:hover:not(:disabled) { background: #F2F6FB; }
-.vp-dialogo__si { background: #1456D6; color: #fff; border: 1px solid #1456D6; }
-.vp-dialogo__si:hover:not(:disabled) { background: #0F44AB; }
-.vp-dialogo__si--peligro { background: #C62828; border-color: #C62828; }
+.vp-dialogo__volver { background: #fff; color: var(--navy); border: 1px solid var(--line); }
+.vp-dialogo__volver:hover:not(:disabled) { background: var(--bg); }
+.vp-dialogo__si { background: var(--blue); color: #fff; border: 1px solid var(--blue); }
+.vp-dialogo__si:hover:not(:disabled) { background: var(--blue-d); }
+.vp-dialogo__si--peligro { background: var(--error); border-color: var(--error); }
 .vp-dialogo__si--peligro:hover:not(:disabled) { background: #A51F1F; }
 
 /* En el celular, botones a lo ancho: la acción principal arriba */

@@ -151,8 +151,12 @@ export const iniciarSesion = (correo, clave) =>
 export const confirmarCuenta = (token) =>
   post('/auth/confirmado', { token });
 
-export const cambiarClave = (actual, nueva) =>
-  post('/auth/cambiar-clave', { actual, nueva });
+// Cambio de contraseña en dos pasos: 1) se envía un código al correo; 2) se confirma con el código.
+export const pedirCodigoClave = (actual) =>
+  post('/auth/cambiar-clave/codigo', { actual });
+
+export const cambiarClave = (actual, nueva, codigo) =>
+  post('/auth/cambiar-clave', { actual, nueva, codigo });
 
 // ============================================
 // RESERVAS

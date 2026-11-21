@@ -6,6 +6,7 @@ import { pedirTokenTarjeta, pedirTokenYape, YAPE_MAX_CENTIMOS, CULQI_KEY } from 
 import { esCorreo } from '../../utils/validaciones.js';
 import './MiReserva.css';
 import Confirmar from '../../componentes/Confirmar.jsx';
+import Icono from '../../componentes/Icono.jsx';
 
 function moneda(valor, tipo = 'PEN') {
   return Number(valor || 0).toLocaleString('es-PE', {
@@ -490,7 +491,7 @@ export default function MiReserva() {
 
                   <div className="mr-info-grid">
                     <Info
-                      icono="📅"
+                      icono={<Icono nombre="calendario" />}
                       titulo="Fecha del viaje"
                       valor={fecha(
                         reserva.fecha_inicio_viaje || reserva.fecha_salida
@@ -498,19 +499,19 @@ export default function MiReserva() {
                     />
 
                     <Info
-                      icono="👥"
+                      icono={<Icono nombre="personas" />}
                       titulo="Cantidad de viajeros"
                       valor={reserva.num_personas || reserva.personas || 1}
                     />
 
                     <Info
-                      icono="🧾"
+                      icono={<Icono nombre="recibo" />}
                       titulo="Fecha de reserva"
                       valor={fecha(reserva.creado_en)}
                     />
 
                     <Info
-                      icono="💳"
+                      icono={<Icono nombre="tarjeta" />}
                       titulo="Fecha de pago"
                       valor={
                         reserva.pagada_en
@@ -634,7 +635,7 @@ export default function MiReserva() {
                         disabled={pagando || esperandoTarjeta}
                         aria-pressed={metodoPago === 'Tarjeta'}
                       >
-                        <span>💳</span>
+                        <span><Icono nombre="tarjeta" tamano={24} /></span>
                         <strong>Tarjeta</strong>
                         <small>Pago seguro con Culqi</small>
                       </button>
@@ -646,7 +647,7 @@ export default function MiReserva() {
                         disabled={pagando || esperandoTarjeta}
                         aria-pressed={metodoPago === 'Yape'}
                       >
-                        <span>📱</span>
+                        <span><Icono nombre="celular" tamano={24} /></span>
                         <strong>Yape</strong>
                         <small>Con código de aprobación</small>
                       </button>
@@ -737,7 +738,7 @@ export default function MiReserva() {
                         )}
 
                         <small className="mr-seguridad">
-                          🔒 Pago con tarjeta procesado de forma segura mediante Culqi.
+                          <Icono nombre="candado" tamano={14} /> Pago con tarjeta procesado de forma segura mediante Culqi.
                         </small>
                       </>
                     )}
@@ -795,7 +796,7 @@ export default function MiReserva() {
                         )}
 
                         <small className="mr-seguridad">
-                          🔒 Pago con Yape procesado de forma segura mediante Culqi.
+                          <Icono nombre="candado" tamano={14} /> Pago con Yape procesado de forma segura mediante Culqi.
                         </small>
                       </>
                     )}
@@ -804,7 +805,7 @@ export default function MiReserva() {
                   </div>
                 ) : pagada ? (
                   <div className="mr-pago-completo">
-                    <span>✓</span>
+                    <span><Icono nombre="check" tamano={26} /></span>
                     <strong>Reserva pagada</strong>
                     <p>Tu pago ha sido registrado correctamente.</p>
                     <a
@@ -840,7 +841,7 @@ export default function MiReserva() {
                   </div>
                 ) : (
                   <div className="mr-pago-completo mr-pago-cancelado">
-                    <span>✕</span>
+                    <span><Icono nombre="x" tamano={26} /></span>
                     <strong>
                       {cancelada ? 'Reserva cancelada' : estadoTexto(reserva.estado)}
                     </strong>

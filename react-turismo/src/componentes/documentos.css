@@ -1,3 +1,5 @@
-/* Ajusta colores/bordes para que combine con tu reservas.css */
-.vp-campo select{width:100%;min-height:44px;padding:0 12px;border:1px solid #8795A8;border-radius:8px;font:inherit;color:inherit;background:#fff}
-.vp-campo input[type="date"]{font:inherit}
+/* Listas desplegables de los formularios: mismo aspecto que los campos de texto (reservas.css) */
+.vp-campo select{width:100%;height:44px;padding:0 12px;border:1px solid var(--line-d);border-radius:var(--radio-s);font:500 16px "Figtree",sans-serif;color:var(--ink);background:#fff}
+.vp-campo select:focus{outline:0;border-color:var(--blue);box-shadow:0 0 0 3px rgba(20,86,214,.15)}
+.vp-campo--error select{border-color:var(--error)}
+.vp-campo input[type="date"]{font:500 16px "Figtree",sans-serif}

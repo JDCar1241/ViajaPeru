@@ -1,53 +1,59 @@
-:root{--vp-marino:#0b2545;--vp-azul:#1b6ca8;--vp-amarillo:#f5b700;--vp-fondo:#f3f6fa;--vp-borde:#cdd8e4;--vp-error:#b3261e;--vp-ok:#1e7a46}
+/* Pantallas de cuenta y reserva. Usan la paleta única de styles.css (las variables --vp-* son alias). */
+:root{--vp-marino:var(--navy);--vp-azul:var(--blue);--vp-amarillo:var(--sun);--vp-fondo:var(--bg);--vp-borde:var(--line);--vp-error:var(--error);--vp-ok:var(--ok)}
 .vp-centro{min-height:70vh;display:grid;place-content:center;gap:1.25rem;padding:2rem 1rem;justify-items:center}
-.vp-panel{background:#fff;border:1px solid var(--vp-borde);border-radius:10px;padding:1.5rem;width:min(100%,30rem);display:grid;gap:.9rem;margin-bottom:1rem}
+.vp-panel{background:#fff;border:1px solid var(--vp-borde);border-radius:var(--radio);padding:24px;width:min(100%,30rem);display:grid;gap:.9rem;margin-bottom:1rem}
 .vp-panel h1,.vp-panel h2,.vp-reserva h1{color:var(--vp-marino);margin:0}
-.vp-sub{color:#4a5b6f;margin:0}
+.vp-panel h1{font-size:32px}
+.vp-sub{color:var(--muted);margin:0}
 .vp-campo{display:grid;gap:.3rem}
-.vp-campo label{font-weight:600;color:var(--vp-marino);font-size:.9rem}
-.vp-campo input{padding:.6rem .7rem;border:1px solid var(--vp-borde);border-radius:6px;font:inherit}
+.vp-campo label{font-weight:600;color:var(--muted);font-size:13px}
+.vp-campo input{height:44px;padding:0 12px;border:1px solid var(--line-d);border-radius:var(--radio-s);font:500 16px "Figtree",sans-serif;color:var(--ink);background:#fff}
+.vp-campo input:focus{outline:0;border-color:var(--blue);box-shadow:0 0 0 3px rgba(20,86,214,.15)}
 .vp-campo input:focus-visible,.vp-btn:focus-visible,.vp-enlace:focus-visible{outline:3px solid var(--vp-amarillo);outline-offset:2px}
 .vp-campo--error input{border-color:var(--vp-error)}
 .vp-error{color:var(--vp-error);margin:0;font-size:.85rem}
-.vp-alerta{background:#fdecea;color:var(--vp-error);padding:.6rem .8rem;border-radius:6px;margin:0}
+.vp-alerta{background:var(--error-bg);color:var(--vp-error);padding:12px 16px;border-radius:var(--radio-s);margin:0}
 .vp-ok{color:var(--vp-ok);font-weight:600;margin:0}
-.vp-btn{background:var(--vp-azul);color:#fff;border:2px solid var(--vp-azul);border-radius:6px;padding:.6rem 1.1rem;font:inherit;font-weight:600;cursor:pointer;text-decoration:none;text-align:center}
-.vp-btn:disabled{opacity:.5;cursor:not-allowed}
-.vp-btn--borde{background:transparent;color:var(--vp-azul)}
+/* Mismo botón que .btn de styles.css */
+.vp-btn{display:inline-flex;align-items:center;justify-content:center;min-height:48px;padding:0 26px;background:var(--vp-azul);color:#fff;border:1px solid var(--vp-azul);border-radius:999px;font:600 15px "Figtree",sans-serif;cursor:pointer;text-decoration:none;text-align:center}
+.vp-btn:hover:not(:disabled){background:var(--blue-d);border-color:var(--blue-d)}
+.vp-btn:disabled{opacity:.4;cursor:not-allowed}
+.vp-btn--borde{background:#fff;color:var(--vp-azul);border-color:var(--line-d)}
+.vp-btn--borde:hover:not(:disabled){background:var(--sky);color:var(--vp-azul);border-color:var(--line-d)}
 .vp-btn--amarillo{background:var(--vp-amarillo);border-color:var(--vp-amarillo);color:var(--vp-marino)}
 .vp-enlace{color:var(--vp-azul);font-weight:600}
 .vp-menu{display:flex;gap:1rem;align-items:center;flex-wrap:wrap}
 .vp-menu__quien small{opacity:.7;margin-left:.3rem}
-.vp-criterios{list-style:none;margin:0;padding:0;font-size:.85rem;color:#4a5b6f}
+.vp-criterios{list-style:none;margin:0;padding:0;font-size:.85rem;color:var(--muted)}
 .vp-criterios li::before{content:"○ "}
 .vp-criterios li.cumple{color:var(--vp-ok)}
 .vp-criterios li.cumple::before{content:"● "}
-.vp-reserva{max-width:48rem;margin:0 auto;padding:1.5rem 1rem 8rem}
+.vp-reserva{max-width:48rem;margin:0 auto;padding:56px 16px 8rem}
 .vp-reserva .vp-panel{width:100%}
 .vp-fila{display:grid;grid-template-columns:.7fr 1fr 1fr;gap:.8rem}
 .vp-fila--2{grid-template-columns:1.4fr 1fr}
 .vp-acomp{display:grid;gap:.5rem;padding-bottom:.8rem;border-bottom:1px solid var(--vp-borde)}
 .vp-acomp .vp-btn{justify-self:start}
-.vp-cupos{position:sticky;bottom:0;background:var(--vp-marino);color:#fff;border-radius:10px 10px 0 0;padding:1rem 1.25rem;display:grid;gap:.6rem}
+.vp-cupos{position:sticky;bottom:0;background:var(--vp-marino);color:#fff;border-radius:var(--radio) var(--radio) 0 0;padding:1rem 1.25rem;display:grid;gap:.6rem}
 .vp-cupos p{margin:0}
 .vp-cupos--excede{background:var(--vp-error)}
 .vp-cupos .vp-alerta{background:#fff}
 .vp-asientos{display:flex;gap:4px;flex-wrap:wrap}
 .vp-asientos i{width:14px;height:14px;border-radius:3px 3px 6px 6px;background:rgba(255,255,255,.25)}
 .vp-asientos i.ocupa{background:var(--vp-amarillo)}
-.vp-ticket{display:grid;grid-template-columns:1fr auto;background:#fff;border:1px solid var(--vp-borde);border-radius:14px;width:min(100%,40rem);overflow:hidden}
+.vp-ticket{display:grid;grid-template-columns:1fr auto;background:#fff;border:1px solid var(--vp-borde);border-radius:var(--radio);width:min(100%,40rem);overflow:hidden}
 .vp-ticket__cuerpo{padding:1.5rem;display:grid;gap:.8rem}
 .vp-ticket__cuerpo h1{color:var(--vp-marino);margin:0}
 .vp-ticket dl{display:grid;grid-template-columns:1fr 1fr;gap:.8rem;margin:0}
-.vp-ticket dt{font-size:.8rem;color:#4a5b6f}
+.vp-ticket dt{font-size:13px;color:var(--muted)}
 .vp-ticket dd{margin:0;font-weight:600;color:var(--vp-marino)}
-.vp-lista{margin:0;padding-left:1.1rem;color:#4a5b6f}
+.vp-lista{margin:0;padding-left:1.1rem;color:var(--texto)}
 .vp-ticket__talon{background:var(--vp-marino);color:#fff;padding:1.5rem;display:grid;align-content:center;justify-items:center;gap:.4rem;border-left:3px dashed var(--vp-amarillo)}
 .vp-ticket__talon strong{color:var(--vp-amarillo);font-size:1.4rem;writing-mode:vertical-rl}
-.vp-fila-botones{display:flex;gap:.8rem}
+.vp-fila-botones{display:flex;flex-wrap:wrap;gap:12px}
 @media(max-width:640px){.vp-fila,.vp-fila--2{grid-template-columns:1fr}.vp-ticket{grid-template-columns:1fr}.vp-ticket__talon{border-left:0;border-top:3px dashed var(--vp-amarillo)}.vp-ticket__talon strong{writing-mode:horizontal-tb}}
-@media print{.vp-fila-botones,header,footer{display:none}}
+@media print{.vp-fila-botones,.sitio,footer{display:none}}
 
 /* Menú dentro del header */
-header .vp-enlace{color:inherit}
-header .vp-menu{display:flex;gap:1rem;align-items:center}
+.sitio .vp-enlace{color:inherit}
+.sitio .vp-menu{display:flex;gap:1rem;align-items:center}

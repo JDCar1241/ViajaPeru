@@ -1,18 +1,45 @@
 @import url("https://fonts.googleapis.com/css2?family=Figtree:wght@400;500;600;700;800&display=swap");
 
-:root{--navy:#0A2540;--blue:#1456D6;--blue-d:#0F44AD;--sky:#EAF2FF;--sun:#FFB547;--ink:#0F1B2D;--muted:#55657A;--line:#DCE4EF}
+/* =========================================================
+   PALETA ÚNICA DE VIAJAPERÚ: todas las pantallas usan estas variables.
+   No escribir colores sueltos en los .css de cada página.
+   ========================================================= */
+:root{
+  /* Marca */
+  --navy:#0A2540;      /* títulos, fondos oscuros */
+  --blue:#1456D6;      /* acción principal, enlaces */
+  --blue-d:#0F44AD;    /* hover de la acción principal */
+  --sky:#EAF2FF;       /* fondos suaves de la marca */
+  --sun:#FFB547;       /* acento (foco, detalles) */
+  /* Texto */
+  --ink:#0F1B2D;       /* texto principal */
+  --texto:#3E4F64;     /* texto secundario */
+  --muted:#55657A;     /* ayudas, etiquetas */
+  /* Superficies y bordes */
+  --bg:#F6F8FB;        /* fondo de secciones */
+  --line:#DCE4EF;      /* bordes */
+  --line-d:#B9C9E6;    /* bordes marcados / hover */
+  /* Estados */
+  --ok:#16824B;    --ok-bg:#E3F7ED;
+  --error:#B3261E; --error-bg:#FDECEA;
+  --warn:#8A5A00;  --warn-bg:#FFF4DC;
+  /* Forma */
+  --radio:16px; --radio-s:10px;
+  --sombra:0 16px 48px rgba(10,37,64,.12);
+  --sombra-s:0 4px 16px rgba(10,37,64,.06);
+}
 *{box-sizing:border-box}
 body{margin:0;font-family:"Figtree",system-ui,sans-serif;color:var(--ink);background:#fff;line-height:1.5;-webkit-font-smoothing:antialiased}
 a{color:var(--blue)}
 :focus-visible{outline:3px solid var(--sun);outline-offset:2px}
 
 /* Estructura */
-header{position:sticky;top:0;z-index:10;display:flex;justify-content:space-between;align-items:center;padding:14px 32px;background:#fff;border-bottom:1px solid var(--line)}
+.sitio{position:sticky;top:0;z-index:10;display:flex;justify-content:space-between;align-items:center;padding:14px 32px;background:#fff;border-bottom:1px solid var(--line)}
 .logo{font-size:22px;font-weight:800;letter-spacing:-.02em;color:var(--navy);text-decoration:none}
 .logo span{color:var(--blue)}
-header nav{display:flex;align-items:center;gap:24px}
-header nav a:not(.btn){color:var(--ink);text-decoration:none;font-weight:500;font-size:15px}
-header nav a:not(.btn):hover{color:var(--blue)}
+.sitio nav{display:flex;align-items:center;gap:24px}
+.sitio nav a:not(.btn){color:var(--ink);text-decoration:none;font-weight:500;font-size:15px}
+.sitio nav a:not(.btn):hover{color:var(--blue)}
 main{max-width:1120px;margin:0 auto;padding:56px 32px 96px}
 .wrap{max-width:1120px;margin:0 auto;padding:0 32px}
 footer{padding:32px;text-align:center;font-size:14px;color:var(--muted);border-top:1px solid var(--line)}
@@ -33,9 +60,9 @@ h2{font-size:16px;font-weight:700;margin:0 0 18px;color:var(--navy)}
 /* Campos */
 .fld{display:flex;flex-direction:column;gap:4px;flex:1;min-width:150px;font-size:13px;font-weight:600;color:var(--muted)}
 .fld.lg{flex:2;min-width:220px}
-.fld input,.fld select{height:44px;border:0;border-bottom:2px solid var(--line);border-radius:0;padding:0;font:500 16px "Figtree",sans-serif;color:var(--ink);background:transparent}
-.fld input:focus,.fld select:focus{outline:0;border-bottom-color:var(--blue)}
-.fld input::placeholder{color:#8795A8;font-weight:400}
+.fld input,.fld select{height:44px;border:1px solid var(--line-d);border-radius:var(--radio-s);padding:0 12px;font:500 16px "Figtree",sans-serif;color:var(--ink);background:#fff}
+.fld input:focus,.fld select:focus{outline:0;border-color:var(--blue);box-shadow:0 0 0 3px rgba(20,86,214,.15)}
+.fld input::placeholder{color:var(--muted);opacity:.7;font-weight:400}
 
 /* Inicio */
 .portada{position:relative;overflow:hidden;background:var(--navy);min-height:540px;padding-top:96px}
@@ -66,7 +93,7 @@ h2{font-size:16px;font-weight:700;margin:0 0 18px;color:var(--navy)}
 
 /* Catálogo */
 .filtros{display:flex;flex-wrap:wrap;gap:24px;align-items:flex-end;margin:36px 0 48px;padding:24px;background:var(--sky);border-radius:16px}
-.filtros .fld input,.filtros .fld select{border-bottom-color:#B9C9E6}
+
 .grid{display:grid;grid-template-columns:repeat(auto-fill,minmax(270px,1fr));gap:44px 28px}
 .card{display:flex;flex-direction:column}
 .card img,.ph{width:100%;aspect-ratio:4/3;object-fit:cover;border-radius:16px;background:var(--sky);display:block}
@@ -92,7 +119,7 @@ h2{font-size:16px;font-weight:700;margin:0 0 18px;color:var(--navy)}
 .titulo{display:flex;justify-content:space-between;align-items:baseline;gap:16px;flex-wrap:wrap;margin:32px 0 48px}
 .titulo strong{font-size:28px!important;font-weight:800;color:var(--blue)}
 .cols{display:grid;grid-template-columns:minmax(0,3fr) minmax(0,2fr);gap:64px;align-items:start}
-@media (max-width:860px){.cols{grid-template-columns:1fr;gap:32px}header{padding:12px 16px}main,.wrap{padding-left:16px;padding-right:16px}}
+@media (max-width:860px){.cols{grid-template-columns:1fr;gap:32px}.sitio{padding:12px 16px}main,.wrap{padding-left:16px;padding-right:16px}}
 .panel{padding:24px 0 8px;border-top:1px solid var(--line);margin-bottom:24px}
 .timeline{list-style:none;margin:0;padding:0}
 .timeline li{display:flex;gap:20px;padding:0 0 22px 22px;margin-left:5px;border-left:2px solid #B9C9E6;position:relative}
@@ -105,3 +132,38 @@ th{text-align:left;font-size:13px;font-weight:600;color:var(--muted);padding:0 0
 td{padding:14px 0;border-top:1px solid var(--line)}
 td:last-child{text-align:right}
 td .btn{min-height:38px;font-size:14px}
+
+/* =========================================================
+   COMPONENTES COMUNES
+   ========================================================= */
+/* Cabecera de página: etiqueta pequeña + título + descripción */
+.cabecera{display:flex;flex-wrap:wrap;justify-content:space-between;align-items:flex-end;gap:16px;margin-bottom:32px}
+.cabecera p{margin:0;color:var(--muted);max-width:640px}
+.etiqueta{display:block;margin-bottom:8px;color:var(--blue);font-size:12px;font-weight:700;letter-spacing:.12em;text-transform:uppercase}
+
+/* Tarjeta (superficie blanca con borde) */
+.tarjeta{background:#fff;border:1px solid var(--line);border-radius:var(--radio);padding:24px}
+
+/* Estado (pastilla) */
+.estado{display:inline-flex;align-items:center;gap:6px;padding:4px 12px;border-radius:999px;font-size:13px;font-weight:700;white-space:nowrap;background:var(--bg);color:var(--muted)}
+.estado--ok{background:var(--ok-bg);color:var(--ok)}
+.estado--error{background:var(--error-bg);color:var(--error)}
+.estado--aviso{background:var(--warn-bg);color:var(--warn)}
+.estado--info{background:var(--sky);color:var(--blue)}
+
+/* Avisos */
+.aviso{padding:12px 16px;border-radius:var(--radio-s);font-size:15px;background:var(--sky);color:var(--navy)}
+.aviso--ok{background:var(--ok-bg);color:var(--ok)}
+.aviso--error{background:var(--error-bg);color:var(--error)}
+
+/* Íconos (componentes/Icono.jsx) */
+.icono{flex:none;vertical-align:-.15em}
+
+/* Lista de datos (etiqueta arriba, valor abajo) en dos columnas */
+.datos{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:20px 32px;margin:0}
+.datos dt{font-size:13px;font-weight:600;color:var(--muted)}
+.datos dd{margin:4px 0 0;font-size:16px;font-weight:600;color:var(--ink);overflow-wrap:anywhere}
+.tarjeta h2{margin-bottom:20px}
+.tarjeta .nota{margin:20px 0 0;font-size:14px}
+.acciones{display:flex;flex-wrap:wrap;gap:12px;margin-top:24px}
+@media (max-width:640px){.datos{grid-template-columns:1fr}.acciones .btn{flex:1 1 100%}}

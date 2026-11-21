@@ -18,16 +18,16 @@
   align-items: center;
   gap: 16px;
   padding: 16px 18px;
-  border: 1px solid #DCE4EF;
+  border: 1px solid var(--line);
   border-radius: 14px;
   background: #fff;
   color: inherit;
   text-decoration: none;
 }
-.gu-salida:hover { border-color: #1456D6; }
+.gu-salida:hover { border-color: var(--blue); }
 .gu-salida > div { display: grid; gap: 3px; }
-.gu-fecha { color: #1456D6; font-size: 13px; font-weight: 700; text-transform: capitalize; }
-.gu-guia { font-size: 12px; color: #55657A; }
+.gu-fecha { color: var(--blue); font-size: 13px; font-weight: 700; text-transform: capitalize; }
+.gu-guia { font-size: 12px; color: var(--muted); }
 
 .gu-contador {
   display: grid;
@@ -35,20 +35,20 @@
   min-width: 78px;
   padding: 10px 12px;
   border-radius: 12px;
-  background: #EAF2FF;
-  color: #0A2540;
+  background: var(--sky);
+  color: var(--navy);
   font-size: 22px;
   font-weight: 800;
 }
-.gu-contador small { font-size: 11px; font-weight: 600; color: #55657A; }
-.gu-contador--ok { background: #e3f7ed; color: #16824b; }
+.gu-contador small { font-size: 11px; font-weight: 600; color: var(--muted); }
+.gu-contador--ok { background: var(--ok-bg); color: var(--ok); }
 
 /* Resumen de la salida */
 .gu-resumen {
   margin: 16px 0;
   padding: 16px;
   border-radius: 14px;
-  background: #0A2540;
+  background: var(--navy);
   color: #fff;
   position: sticky;
   top: 0;
@@ -71,12 +71,12 @@
   align-items: center;
   gap: 12px;
   padding: 14px 16px;
-  border: 1px solid #DCE4EF;
-  border-left: 5px solid #F5B547;
+  border: 1px solid var(--line);
+  border-left: 5px solid var(--sun);
   border-radius: 12px;
   background: #fff;
 }
-.gu-pasajero--presente { border-left-color: #16824b; background: #f4fbf7; }
+.gu-pasajero--presente { border-left-color: var(--ok); background: var(--ok-bg); }
 .gu-pasajero__datos { display: grid; gap: 2px; min-width: 0; }
 .gu-pasajero__datos span { font-size: 13px; }
 .gu-pasajero__accion { display: grid; justify-items: end; gap: 6px; flex-shrink: 0; }
@@ -85,12 +85,12 @@
 .gu-estado {
   padding: 3px 10px;
   border-radius: 99px;
-  background: #fff2d9;
-  color: #a66c08;
+  background: var(--warn-bg);
+  color: var(--warn);
   font-size: 12px;
   font-weight: 700;
 }
-.gu-estado--presente { background: #e3f7ed; color: #16824b; }
+.gu-estado--presente { background: var(--ok-bg); color: var(--ok); }
 
 @media (max-width: 600px) {
   .gu-filtros .fld { flex: 1 1 140px; }

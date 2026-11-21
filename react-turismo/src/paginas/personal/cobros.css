@@ -2,7 +2,7 @@
 .cb-linea .btn{justify-self:start}
 .cb-campos{display:flex;flex-wrap:wrap;gap:20px;align-items:flex-end}
 .cb-vuelto{margin:0;font-weight:700;color:var(--navy)}
-.cb-error{margin:0;font-size:14px;color:#B3261E}
+.cb-error{margin:0;font-size:14px;color:var(--error)}
 .cb-error--claro{color:#FFB3AB;margin-bottom:8px;text-align:right}
 .cb-datos{display:grid;gap:14px;margin:0}
 .cb-datos dt{font-size:13px;color:var(--muted)}
@@ -17,7 +17,7 @@
 .cb-vuelto-grande{display:grid;margin:32px 0;padding:24px;background:var(--sky);border-radius:20px;font-size:56px;font-weight:800;letter-spacing:-.03em;color:var(--navy)}
 .cb-vuelto-grande small{font-size:14px;font-weight:600;letter-spacing:0;color:var(--muted)}
 .cb-botones{display:flex;gap:12px;justify-content:center}
-@media print{header,footer,.cb-botones{display:none}}
+@media print{.sitio,footer,.cb-botones{display:none}}
 .btn.sec{margin-top:0}
 .cb-tabs{align-items:flex-start}
 main table th,main table td{padding-right:20px}

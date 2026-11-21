@@ -1,8 +1,10 @@
-
 import { useCallback, useEffect, useState } from 'react';
 import { pedir } from '../../servicios/api.js';
 import { useSesion } from '../../servicios/auth.js';
-import '../../estilos/reservas.css';
+
+// Datos de la cuenta del cliente (solo lectura). Misma estructura que el resto de páginas:
+// cabecera + tarjeta con los datos + acciones.
+const NOMBRES_DOC = { DNI: 'DNI', CE: 'Carné de extranjería', PASAPORTE: 'Pasaporte' };
 
 export default function MiCuenta() {
   const sesion = useSesion();
@@ -37,104 +39,72 @@ export default function MiCuenta() {
 
   if (!sesion) {
     return (
-      <main className="vp-centro">
-        <section className="vp-panel">
-          <h1>Mi cuenta</h1>
-          <p>Debes iniciar sesión para consultar tu información.</p>
-          <a className="vp-btn" href="#/login">Iniciar sesión</a>
-        </section>
+      <main>
+        <div className="vacio">
+          <strong>Inicia sesión para ver tu cuenta</strong>
+          <p><a className="btn" href="#/login">Iniciar sesión</a></p>
+        </div>
       </main>
     );
   }
 
+  const nombre = perfil
+    ? [perfil.nombres, perfil.apellido_paterno, perfil.apellido_materno].filter(Boolean).join(' ')
+    : '';
+  const tipo = String(perfil?.tipo_documento || '').toUpperCase();
+
+  const datos = perfil
+    ? [
+        ['Nombre completo', nombre],
+        ['Documento', perfil.numero_documento ? `${NOMBRES_DOC[tipo] || tipo || 'Documento'} ${perfil.numero_documento}` : ''],
+        ['Correo electrónico', perfil.correo],
+        ['Teléfono', perfil.telefono],
+      ]
+    : [];
+
   return (
-    <main className="vp-centro">
-      <section className="vp-panel">
-        <h1>Mi cuenta</h1>
+    <main>
+      <div className="cabecera">
+        <div>
+          <span className="etiqueta">Mi espacio viajero</span>
+          <h1>Mi cuenta</h1>
+          <p>Estos son los datos con los que creaste tu cuenta.</p>
+        </div>
+      </div>
 
-        {estado === 'cargando' && (
-          <p>Cargando información de tu cuenta...</p>
-        )}
+      {estado === 'cargando' && <div className="skeleton" style={{ height: 220 }} />}
 
-        {estado === 'error' && (
-          <>
-            <p className="vp-error" role="alert">{error}</p>
-            <button className="vp-btn" onClick={cargarPerfil}>
-              Volver a intentar
-            </button>
-          </>
-        )}
+      {estado === 'error' && (
+        <div className="error" role="alert">
+          <strong>{error}</strong>
+          <p><button className="btn sec" onClick={cargarPerfil}>Volver a intentar</button></p>
+        </div>
+      )}
 
-        {estado === 'ok' && perfil && (
-          <>
-            <div className="vp-reserva">
-              <h2>Información personal</h2>
-
-              <div className="vp-formulario">
-                <div className="vp-campo">
-                  <label>Nombre completo</label>
-                  <input
-                    value={
-                      // El Backend envía los apellidos por separado (apellido_paterno / apellido_materno)
-                      [perfil.nombres, perfil.apellido_paterno, perfil.apellido_materno]
-                        .filter(Boolean)
-                        .join(' ') || 'No registrado'
-                    }
-                    readOnly
-                    disabled
-                  />
+      {estado === 'ok' && perfil && (
+        <>
+          <section className="tarjeta">
+            <h2>Información personal</h2>
+            <dl className="datos">
+              {datos.map(([etiqueta, valor]) => (
+                <div key={etiqueta}>
+                  <dt>{etiqueta}</dt>
+                  <dd>{valor || 'No registrado'}</dd>
                 </div>
+              ))}
+            </dl>
+            <p className="muted nota">
+              Para corregir tu nombre o documento comunícate con ViajaPerú.
+            </p>
+          </section>
 
-                <div className="vp-campo">
-                  <label>Tipo de documento</label>
-                  <input
-                    value={perfil.tipo_documento || 'No registrado'}
-                    readOnly
-                    disabled
-                  />
-                </div>
-
-                <div className="vp-campo">
-                  <label>Número de documento</label>
-                  <input
-                    value={perfil.numero_documento || 'No registrado'}
-                    readOnly
-                    disabled
-                  />
-                </div>
-
-                <div className="vp-campo">
-                  <label>Correo electrónico</label>
-                  <input
-                    value={perfil.correo || 'No registrado'}
-                    readOnly
-                    disabled
-                  />
-                </div>
-
-                <div className="vp-campo">
-                  <label>Teléfono</label>
-                  <input
-                    value={perfil.telefono || 'No registrado'}
-                    readOnly
-                    disabled
-                  />
-                </div>
-              </div>
-            </div>
-
-            <div className="vp-fila-botones">
-              <a className="vp-btn" href="#/mis-reservas">
-                Mis reservas
-              </a>
-
-              <a className="vp-btn" href="#/paquetes">
-                Ver paquetes
-              </a>
-            </div>
-          </>
-        )}
-      </section>
+          <div className="acciones">
+            <a className="btn" href="#/mis-reservas">Mis reservas</a>
+            <a className="btn sec" href="#/paquetes">Ver paquetes</a>
+            <a className="btn sec" href="#/cambiar-clave">Cambiar contraseña</a>
+          </div>
+        </>
+      )}
     </main>
   );
 }

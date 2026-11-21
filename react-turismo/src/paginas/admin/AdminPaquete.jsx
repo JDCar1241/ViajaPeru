@@ -5,6 +5,7 @@ import { useSesion } from '../../servicios/auth.js';
 import { aInputLima, ahoraLima, fechaHoraLima } from './fechas.js';
 import SubirFoto from './SubirFoto.jsx';
 import Confirmar from '../../componentes/Confirmar.jsx';
+import Icono from '../../componentes/Icono.jsx';
 
 // HU-009 · Crear / editar un paquete y gestionar sus salidas (fechas, cupos y guía).
 const VACIO = { nombre: '', destino: '', costo: '', foto_url: '', aclaraciones: '', itinerario: [] };
@@ -154,7 +155,7 @@ export default function AdminPaquete({ id }) {
               <div className="ad-actividad__botones">
                 <button type="button" className="ad-icono" disabled={k === 0} onClick={() => moverActividad(k, -1)} aria-label="Subir">↑</button>
                 <button type="button" className="ad-icono" disabled={k === form.itinerario.length - 1} onClick={() => moverActividad(k, 1)} aria-label="Bajar">↓</button>
-                <button type="button" className="ad-icono" onClick={() => quitarActividad(k)} aria-label="Quitar">✕</button>
+                <button type="button" className="ad-icono" onClick={() => quitarActividad(k)} aria-label="Quitar"><Icono nombre="x" tamano={16} /></button>
               </div>
             </div>
           ))}

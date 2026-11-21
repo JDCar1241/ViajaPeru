@@ -2,6 +2,7 @@
 import { useEffect, useState } from 'react';
 import { pedir, pedirArchivo } from '../../servicios/api.js';
 import './ComprobanteCliente.css';
+import Icono from '../../componentes/Icono.jsx';
 
 const numeroCompleto = (c) => `${c.serie}-${String(c.numero).padStart(8, '0')}`;
 
@@ -113,7 +114,7 @@ export default function ComprobanteCliente({ id }) {
         </div>
 
         <div className="cc-estado">
-          <span>✓</span>
+          <span><Icono nombre="check" tamano={16} /></span>
           Comprobante emitido
         </div>
 
