@@ -171,3 +171,4 @@ td .btn{min-height:38px;font-size:14px}
 /* Texto solo para lectores de pantalla */
 .sr-only{position:absolute;width:1px;height:1px;padding:0;margin:-1px;overflow:hidden;clip:rect(0,0,0,0);white-space:nowrap;border:0}
 .aviso--pendiente{background:var(--warn-bg);color:var(--warn);width:min(100%,40rem);text-align:center}
+.aviso--estado{width:min(100%,40rem);text-align:center}

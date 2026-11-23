@@ -1,6 +1,6 @@
-
+import { useEffect, useState } from 'react';
 import '../../estilos/reservas.css';
-import { ultima } from '../../servicios/api.js';
+import { pedir, ultima } from '../../servicios/api.js';
 import { useSesion } from '../../servicios/auth.js';
 import { soles } from '../../utils/moneda.js';
 
@@ -30,24 +30,81 @@ const nombreDocumento = (tipo) => {
   return nombres[tipo] || tipo || 'Documento';
 };
 
-export default function Confirmacion() {
+// La reserva tal como la devuelve el servidor, con los nombres que usa esta página.
+const desdeServidor = (d) => ({
+  ...d,
+  paquete: d.paquete?.nombre || d.paquete,
+  fecha: d.fecha_inicio_viaje,
+  personas: d.personas || d.num_personas,
+});
+
+export default function Confirmacion({ id }) {
   const sesion = useSesion();
   const esCliente = sesion?.usuario?.rol === 'Cliente';
 
-  const r = ultima.datos;
+  // Recién creada: los datos ya están en memoria. Si se recargó la página, se piden al servidor.
+  const enMemoria =
+    ultima.datos && (!id || String(ultima.datos.id) === String(id))
+      ? ultima.datos
+      : null;
+
+  const [cargada, setCargada] = useState(null);
+  const [estado, setEstado] = useState(enMemoria || !id || !sesion ? 'listo' : 'cargando');
+
+  useEffect(() => {
+    if (enMemoria || !id || !sesion) return;
+
+    const ctrl = new AbortController();
+    const ruta = esCliente ? '/portal-cliente/reservas/' + id : '/reservas/' + id;
+
+    pedir(ruta, { signal: ctrl.signal })
+      .then((d) => {
+        setCargada(desdeServidor(d));
+        setEstado('listo');
+      })
+      .catch((e) => {
+        if (e.name !== 'AbortError') setEstado('error');
+      });
+
+    return () => ctrl.abort();
+  }, [id, enMemoria, sesion, esCliente]);
+
+  const r = enMemoria || cargada;
+
+  if (estado === 'cargando') {
+    return (
+      <main className="vp-centro">
+        <div className="vp-panel">
+          <p>Cargando la reserva…</p>
+        </div>
+      </main>
+    );
+  }
 
   if (!r) {
     return (
       <main className="vp-centro">
         <div className="vp-panel">
-          <p>No hay una reserva reciente.</p>
-          <a className="vp-btn" href="#/paquetes">
-            Ir al catálogo
+          <p>
+            {estado === 'error'
+              ? 'No pudimos cargar la reserva.'
+              : id && !sesion
+                ? 'Inicia sesión para ver tu reserva.'
+                : 'No hay una reserva reciente.'}
+          </p>
+          <a
+            className="vp-btn"
+            href={id && !sesion ? '#/login' : esCliente ? '#/mis-reservas' : '#/paquetes'}
+          >
+            {id && !sesion ? 'Iniciar sesión' : esCliente ? 'Ver mis reservas' : 'Ir al catálogo'}
           </a>
         </div>
       </main>
     );
   }
+
+  // Al recargar más tarde la reserva puede estar ya pagada o cancelada.
+  const pendiente = !r.estado || r.estado === 'Pendiente';
 
   const codigo = r.codigo || r.id;
   const cliente = r.cliente || {};
@@ -143,15 +200,28 @@ export default function Confirmacion() {
         </div>
       </article>
 
-      <p className="aviso aviso--pendiente">
-        Tu reserva está <strong>pendiente de pago</strong>.{' '}
-        {esCliente
-          ? 'Págala ahora para confirmar tus cupos y recibir tu boleta por correo.'
-          : 'Cóbrala para confirmar los cupos; el comprobante se enviará al correo del cliente.'}
-      </p>
+      {pendiente ? (
+        <p className="aviso aviso--pendiente">
+          Tu reserva está <strong>pendiente de pago</strong>.{' '}
+          {esCliente
+            ? 'Págala ahora para confirmar tus cupos y recibir tu boleta por correo.'
+            : 'Cóbrala para confirmar los cupos; el comprobante se enviará al correo del cliente.'}
+        </p>
+      ) : (
+        <p className={'aviso aviso--estado ' + (r.estado === 'Pagada' ? 'aviso--ok' : 'aviso--error')}>
+          Esta reserva está <strong>{r.estado === 'Pagada' ? 'pagada' : 'cancelada'}</strong>.
+        </p>
+      )}
 
       <p className="vp-fila-botones">
-        {esCliente ? (
+        {!pendiente ? (
+          <a
+            className="vp-btn"
+            href={esCliente ? '#/mi-reserva/' + r.id : '#/cobros'}
+          >
+            {esCliente ? 'Ver mi reserva' : 'Ir a cobros'}
+          </a>
+        ) : esCliente ? (
           <>
             <a
               className="vp-btn"

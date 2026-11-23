@@ -659,7 +659,7 @@ export default function Reserva({ paqueteId, salidaId }) {
         personas,
       };
 
-      window.location.hash = '#/reserva-confirmada';
+      window.location.hash = '#/reserva-confirmada/' + r.id;
     } catch (ex) {
       console.error('Error al registrar reserva:', ex);
 

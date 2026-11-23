@@ -51,6 +51,7 @@ export default function App() {
   const miReserva = hash.match(/^#\/mi-reserva\/(\d+)/);
   const miComprobante = hash.match(/^#\/mi-comprobante\/(\d+)/);
   const guiaSalida = hash.match(/^#\/guia\/salida\/(\d+)/);
+  const confirmada = hash.match(/^#\/reserva-confirmada\/(\d+)/);
   const adminPaquete = hash.match(/^#\/admin\/paquete\/(nuevo|\d+)/);
 
   const esCliente = sesion?.usuario?.rol === 'Cliente';
@@ -95,7 +96,7 @@ export default function App() {
   } else if (hash.startsWith('#/cobros')) {
     vista = <Cobros />;
   } else if (hash.startsWith('#/reserva-confirmada')) {
-    vista = <Confirmacion />;
+    vista = <Confirmacion key={hash} id={confirmada?.[1]} />;
   } else if (hash.startsWith('#/cambiar-clave')) {
     vista = <CambiarClave />;
   } else if (hash.startsWith('#/paquetes')) {
