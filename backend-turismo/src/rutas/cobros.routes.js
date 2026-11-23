@@ -222,7 +222,7 @@ router.post('/:id/pagos', requiereSesion(ROLES), async (req, res, next) => {
       if (eMon) console.error('No se pudo guardar la moneda del cobro', cargo.id, eMon);
     }
 
-    // HU-007: el comprobante se emite solo y se envía al correo del cliente (en segundo plano).
+    // HU-007: el comprobante se emite solo y se envía al correo del cliente (se espera el resultado).
     // Si fallara, el pago ya quedó registrado y se puede emitir a mano desde Cobros.
     const comp = await emitirYEnviarComprobante(id, req.usuario.id, elegido);
     const { data: filaCorreo } = await supabase.from('reservas').select('clientes(correo)').eq('id', id).maybeSingle();
@@ -231,7 +231,11 @@ router.post('/:id/pagos', requiereSesion(ROLES), async (req, res, next) => {
       ...data,
       tarjeta: cargo ? { moneda: tarjeta.moneda, monto: centimos / 100, tipo_cambio: tc } : undefined,
       comprobante: comp
-        ? { id: comp.id, tipo: comp.tipo, serie: comp.serie, numero: comp.numero, correo: filaCorreo?.clientes?.correo || null }
+        ? {
+            id: comp.id, tipo: comp.tipo, serie: comp.serie, numero: comp.numero,
+            correo: filaCorreo?.clientes?.correo || null,
+            correo_enviado: comp.correo_enviado,
+          }
         : null,
     });
   } catch (e) { next(e); }

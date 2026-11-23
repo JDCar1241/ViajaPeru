@@ -104,12 +104,6 @@ export async function enviarComprobantePorCorreo(comprobanteId, destinatario = n
   return { enviado: true };
 }
 
-// Envía en segundo plano (no hace esperar la respuesta al usuario). Nunca lanza errores.
-export function enviarEnSegundoPlano(comprobanteId, destinatario = null) {
-  enviarComprobantePorCorreo(comprobanteId, destinatario).catch((e) =>
-    console.error(`Comprobante ${comprobanteId}: no se pudo enviar por correo:`, e.message || e));
-}
-
 // Emite el comprobante elegido por el personal (factura o boleta con otro comprador).
 async function emitirElegido(reservaId, tipo, comprador, emitidoPor) {
   const { data, error } = await supabase.rpc('emitir_comprobante', {
@@ -128,19 +122,33 @@ async function emitirElegido(reservaId, tipo, comprador, emitidoPor) {
   return data;
 }
 
-// Para usar después de un pago (en línea o presencial): emite el comprobante (se espera, es rápido)
-// y lo envía por correo en segundo plano. Nunca lanza errores: el pago ya quedó registrado.
+// Envía el comprobante y ESPERA el resultado (≈1-2 s). Devuelve true/false; nunca lanza errores.
+// Se espera a propósito: si el servidor se reinicia justo después de responder (despliegue,
+// recarga en desarrollo), un envío en segundo plano se perdería sin que nadie lo sepa.
+export async function enviarYConfirmar(comprobanteId, destinatario = null) {
+  try {
+    return (await enviarComprobantePorCorreo(comprobanteId, destinatario)).enviado;
+  } catch (e) {
+    console.error(`Comprobante ${comprobanteId}: no se pudo enviar por correo:`, e.message || e);
+    return false;
+  }
+}
+
+// Para usar después de un pago (en línea o presencial): emite el comprobante y lo envía por correo.
+// Nunca lanza errores: el pago ya quedó registrado.
 //   elegido: { tipo: 'Boleta' | 'Factura', comprador } -> lo que eligió el personal en caja.
 //   Sin "elegido" (o boleta sin comprador): boleta a nombre del titular.
+// Devuelve el comprobante con "correo_enviado" (true/false), o null si no se pudo emitir.
 export async function emitirYEnviarComprobante(reservaId, emitidoPor = null, elegido = null) {
+  let comp;
   try {
-    const comp = elegido?.comprador
+    comp = elegido?.comprador
       ? await emitirElegido(reservaId, elegido.tipo, elegido.comprador, emitidoPor)
       : await emitirBoletaAutomatica(reservaId, emitidoPor);
-    if (comp?.id) enviarEnSegundoPlano(comp.id);
-    return comp;
   } catch (e) {
     console.error(`Reserva ${reservaId}: el pago quedó registrado, pero falló el comprobante digital:`, e.message || e);
     return null;
   }
+  if (!comp?.id) return null;
+  return { ...comp, correo_enviado: await enviarYConfirmar(comp.id) };
 }

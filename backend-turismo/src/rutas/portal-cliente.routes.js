@@ -694,11 +694,14 @@ router.post('/reservas/:id/pagar', limitarPago, async (req, res, next) => {
     const comprobante = await emitirYEnviarComprobante(id, req.usuario.id);
 
     return res.status(201).json({
-      mensaje: comprobante
-        ? 'Pago realizado correctamente. Te enviamos tu boleta por correo.'
-        : 'Pago realizado correctamente.',
+      mensaje: !comprobante
+        ? 'Pago realizado correctamente.'
+        : comprobante.correo_enviado
+          ? 'Pago realizado correctamente. Te enviamos tu boleta por correo.'
+          : 'Pago realizado correctamente. Tu boleta está en "Ver mi comprobante" (no pudimos enviarla por correo).',
       pago,
       comprobante_id: comprobante?.id ?? null,
+      correo_enviado: comprobante?.correo_enviado ?? false,
       reserva_id: id,
       estado: 'Pagada',
       saldo_utilizado: saldoCent / 100,

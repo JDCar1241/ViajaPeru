@@ -2,7 +2,7 @@ import { Router } from 'express';
 import { supabase } from '../config/supabase.js';
 import { requiereSesion, fallo } from '../middlewares/auth.middleware.js';
 import { generarPdf, numeroCompleto } from '../servicios/comprobante.pdf.js';
-import { enviarEnSegundoPlano, enviarComprobantePorCorreo } from '../servicios/comprobante-digital.js';
+import { enviarYConfirmar, enviarComprobantePorCorreo } from '../servicios/comprobante-digital.js';
 import { ROLES_CAJA as ROLES, idValido, txt, DOCUMENTOS, esCorreo } from '../utils/comunes.js';
 
 // Se monta en /api: define /reservas/:id/comprobante y /comprobantes/:id/pdf
@@ -57,10 +57,10 @@ router.post('/reservas/:id/comprobante', requiereSesion(ROLES), async (req, res,
       throw error;
     }
 
-    // HU-007: el comprobante digital se envía al correo del cliente (en segundo plano)
-    enviarEnSegundoPlano(data.id);
+    // HU-007: el comprobante digital se envía al correo del cliente (se espera el resultado)
+    const correoEnviado = await enviarYConfirmar(data.id);
 
-    res.status(201).json(data);
+    res.status(201).json({ ...data, correo_enviado: correoEnviado });
   } catch (e) { next(e); }
 });
 
