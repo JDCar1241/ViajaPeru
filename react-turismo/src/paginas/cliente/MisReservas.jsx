@@ -3,6 +3,7 @@ import { useCallback, useEffect, useState } from 'react';
 import { pedir } from '../../servicios/api.js';
 import './MisReservas.css';
 import Icono from '../../componentes/Icono.jsx';
+import { codigoReserva } from '../../utils/utils.js';
 
 const moneda = (valor) =>
   new Intl.NumberFormat('es-PE', {
@@ -259,7 +260,7 @@ export default function MisReservas() {
 
                       <div className="mc-destino">
                         <span className="mc-reserva-numero">
-                          RESERVA N.º {r.id}
+                          RESERVA {r.codigo || codigoReserva(r.id)}
                         </span>
 
                         <h3>{nombrePaquete(r)}</h3>

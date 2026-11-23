@@ -26,3 +26,6 @@ export function nombreCorto(u) {
   if (p.length <= 2) return cap(p.join(' '));
   return cap(`${p[0]} ${p.length >= 4 ? p[2] : p[1]}`);
 }
+// Código visible de una reserva: el mismo formato que genera la base ('VP-' || lpad(id, 6, '0')).
+// Usar siempre este en pantalla, nunca el id suelto ("#12").
+export const codigoReserva = (id) => 'VP-' + String(id ?? '').padStart(6, '0');

@@ -3,6 +3,7 @@ import { useEffect, useState } from 'react';
 import { pedir, pedirArchivo } from '../../servicios/api.js';
 import './ComprobanteCliente.css';
 import Icono from '../../componentes/Icono.jsx';
+import { codigoReserva } from '../../utils/utils.js';
 
 const numeroCompleto = (c) => `${c.serie}-${String(c.numero).padStart(8, '0')}`;
 
@@ -120,8 +121,8 @@ export default function ComprobanteCliente({ id }) {
 
         <div className="cc-datos">
           <div>
-            <small>Número de reserva</small>
-            <strong>#{comprobante.reserva_id}</strong>
+            <small>Código de reserva</small>
+            <strong>{codigoReserva(comprobante.reserva_id)}</strong>
           </div>
 
           <div>
