@@ -9,7 +9,7 @@
   },
   "scripts": {
     "start": "node src/index.js",
-    "dev": "node --watch src/index.js",
+    "dev": "node --watch-path=./src src/index.js",
     "probar": "node scripts/probar-api.mjs"
   },
   "dependencies": {
