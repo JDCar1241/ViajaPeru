@@ -69,11 +69,13 @@ export default function Cobrar({ id }) {
       )}
       {recibo.vuelto > 0 && <div className="cb-vuelto-grande"><small>Entrega de vuelto</small>{soles(recibo.vuelto / 100)}</div>}
       {recibo.comprobante ? (
-        <p className={'aviso ' + (recibo.comprobante.correo ? 'aviso--ok' : '')} style={{ margin: '24px 0' }}>
+        <p className={'aviso ' + (recibo.comprobante.correo_enviado ? 'aviso--ok' : '')} style={{ margin: '24px 0' }}>
           {recibo.comprobante.tipo} {recibo.comprobante.serie}-{String(recibo.comprobante.numero).padStart(8, '0')} emitida
-          {recibo.comprobante.correo
+          {recibo.comprobante.correo_enviado
             ? <> y enviada a <strong>{recibo.comprobante.correo}</strong>.</>
-            : '. El cliente no tiene correo: entrégale el comprobante impreso.'}
+            : recibo.comprobante.correo
+              ? <>, pero no se pudo enviar a <strong>{recibo.comprobante.correo}</strong>. Entrégala impresa.</>
+              : '. El cliente no tiene correo: entrégale el comprobante impreso.'}
         </p>
       ) : (
         <p className="aviso aviso--error" style={{ margin: '24px 0' }}>

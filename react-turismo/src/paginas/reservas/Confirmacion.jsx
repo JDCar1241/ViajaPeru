@@ -2,6 +2,7 @@
 import '../../estilos/reservas.css';
 import { ultima } from '../../servicios/api.js';
 import { useSesion } from '../../servicios/auth.js';
+import { soles } from '../../utils/moneda.js';
 
 // La salida llega como fecha y hora ISO (en UTC). Cortar los 10 primeros caracteres
 // daba el día UTC, que puede ser el día siguiente al de Lima: se formatea en hora de Lima.
@@ -97,6 +98,13 @@ export default function Confirmacion() {
               <dt>Personas</dt>
               <dd>{r.personas || 1}</dd>
             </div>
+
+            {r.total != null && (
+              <div>
+                <dt>Total a pagar</dt>
+                <dd>{soles(r.total)}</dd>
+              </div>
+            )}
           </dl>
 
           {acompanantes.length > 0 && (
@@ -135,21 +143,28 @@ export default function Confirmacion() {
         </div>
       </article>
 
+      <p className="aviso aviso--pendiente">
+        Tu reserva está <strong>pendiente de pago</strong>.{' '}
+        {esCliente
+          ? 'Págala ahora para confirmar tus cupos y recibir tu boleta por correo.'
+          : 'Cóbrala para confirmar los cupos; el comprobante se enviará al correo del cliente.'}
+      </p>
+
       <p className="vp-fila-botones">
         {esCliente ? (
           <>
             <a
               className="vp-btn"
-              href="#/mis-reservas"
+              href={'#/mi-reserva/' + r.id}
             >
-              Ver mis reservas
+              Pagar ahora
             </a>
 
             <a
               className="vp-btn vp-btn--borde"
-              href="#/paquetes"
+              href="#/mis-reservas"
             >
-              Seguir explorando paquetes
+              Ver mis reservas
             </a>
           </>
         ) : (
