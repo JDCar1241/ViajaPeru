@@ -810,8 +810,9 @@ export default function MiReserva() {
                     <p>Tu pago ha sido registrado correctamente.</p>
                     <a
                       href={`#/mi-comprobante/${id}`}
-                      className="mr-boton-comprobante"
+                      className="mr-boton mr-boton-comprobante"
                     >
+                      <Icono nombre="recibo" tamano={18} />
                       Ver mi comprobante
                     </a>
 
@@ -877,14 +878,18 @@ export default function MiReserva() {
       {reserva && (
         <Confirmar
           abierto={confirmarCancelacion}
-          titulo="¿Cancelar esta reserva?"
+          titulo="¿Seguro que quieres cancelar la reserva?"
           confirmar="Sí, cancelar reserva"
-          volver="No, volver"
+          volver="No, mantener mi reserva"
           peligro
           ocupado={cancelando}
           onConfirmar={cancelarReserva}
           onCerrar={() => setConfirmarCancelacion(false)}
         >
+          <p>
+            Vas a cancelar la reserva <strong>{reserva.codigo}</strong>
+            {nombrePaquete ? <> de <strong>{nombrePaquete}</strong></> : null}.
+          </p>
           <p>
             Se liberarán los cupos y <strong>{moneda(reserva.total)}</strong> se acreditarán
             como saldo a favor para tus próximas reservas en ViajaPerú.

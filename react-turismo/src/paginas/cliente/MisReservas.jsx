@@ -312,15 +312,27 @@ export default function MisReservas() {
                             : 'Consulta la información de tu reserva.'}
                       </span>
 
-                      <a
-                        className={`mc-boton-principal ${
-                          pendiente ? 'mc-boton-pagar' : ''
-                        }`}
-                        href={`#/mi-reserva/${r.id}`}
-                      >
-                        {pendiente ? 'Pagar ahora' : 'Ver detalle'}
-                        <span>→</span>
-                      </a>
+                      <div className="mc-botones">
+                        {String(r.estado || '').toLowerCase() === 'pagada' && (
+                          <a
+                            className="mc-boton-principal mc-boton-comprobante"
+                            href={`#/mi-comprobante/${r.id}`}
+                          >
+                            <Icono nombre="recibo" tamano={16} />
+                            Comprobante
+                          </a>
+                        )}
+
+                        <a
+                          className={`mc-boton-principal ${
+                            pendiente ? 'mc-boton-pagar' : ''
+                          }`}
+                          href={`#/mi-reserva/${r.id}`}
+                        >
+                          {pendiente ? 'Pagar ahora' : 'Ver detalle'}
+                          <span>→</span>
+                        </a>
+                      </div>
                     </div>
                   </article>
                 );

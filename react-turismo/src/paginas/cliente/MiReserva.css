@@ -762,3 +762,25 @@
     padding: 32px 16px 64px;
   }
 }
+
+/* Botón "Ver mi comprobante" (reserva pagada) */
+.mr-boton-comprobante {
+  gap: 9px;
+  width: 100%;
+  margin-top: 16px;
+  background: var(--ok);
+  box-shadow: var(--sombra-s);
+  font-size: 14px;
+  transition: transform 0.15s ease, background 0.15s ease;
+}
+
+.mr-boton-comprobante:hover {
+  background: var(--ok);
+  filter: brightness(0.92);
+  transform: translateY(-1px);
+}
+
+.mr-boton-comprobante:focus-visible {
+  outline: 3px solid var(--sky);
+  outline-offset: 2px;
+}

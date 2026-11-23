@@ -299,6 +299,25 @@
   background: var(--blue-d);
 }
 
+/* Botones del pie de la tarjeta */
+.mc-botones {
+  display: flex;
+  flex-shrink: 0;
+  gap: 10px;
+}
+
+.mc-boton-comprobante {
+  gap: 8px;
+  border: 1px solid var(--ok);
+  background: var(--ok-bg);
+  color: var(--ok);
+}
+
+.mc-boton-comprobante:hover {
+  background: var(--ok);
+  color: white;
+}
+
 .mc-mensaje {
   display: flex;
   flex-direction: column;
@@ -408,6 +427,10 @@
 
   .mc-tarjeta-pie .mc-boton-principal {
     width: 100%;
+  }
+
+  .mc-botones {
+    flex-direction: column;
   }
 
   .mc-lista-encabezado h2 {
