@@ -784,3 +784,18 @@
   outline: 3px solid var(--sky);
   outline-offset: 2px;
 }
+
+/* Aviso de aceptación de términos bajo el pago */
+.mr-terminos {
+  display: block;
+  margin-top: 14px;
+  color: var(--muted);
+  font-size: 12px;
+  line-height: 1.5;
+  text-align: center;
+}
+
+.mr-terminos a {
+  color: var(--blue);
+  font-weight: 600;
+}

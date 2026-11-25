@@ -172,6 +172,11 @@ for (const [metodo, ruta] of [
   ['GET', '/api/consultas/dni/12345678'],
   ['GET', '/api/consultas/ce/123456789'],
   ['GET', '/api/consultas/ruc/20123456789'],
+  ['GET', '/api/reclamos'],
+  ['POST', '/api/reclamos/1/respuesta'],
+  ['GET', '/api/admin/paquetes'],
+  ['GET', '/api/portal-cliente/reservas'],
+  ['GET', '/api/guia/salidas'],
 ]) {
   await caso(`${metodo} ${ruta}`, async () => {
     const r = await enviar(metodo, ruta, metodo === 'POST' ? {} : undefined);
@@ -191,6 +196,16 @@ await caso('login sin datos: 400', async () => {
 await caso('registro sin datos: 400', async () => {
   const r = await enviar('POST', '/api/clientes/registro', {});
   afirmar(r.status === 400 && r.cuerpo?.mensaje, `status ${r.status}`);
+});
+
+console.log('\nInformación legal y Libro de Reclamaciones');
+await caso('GET /api/empresa: datos públicos del vendedor', async () => {
+  const r = await get('/api/empresa');
+  afirmar(r.status === 200 && typeof r.cuerpo?.razon_social === 'string', `status ${r.status}`);
+});
+await caso('reclamo sin datos: 400 con errores por campo', async () => {
+  const r = await enviar('POST', '/api/reclamos', {});
+  afirmar(r.status === 400 && r.cuerpo?.errores?.correo && r.cuerpo?.errores?.detalle, `status ${r.status}`);
 });
 
 console.log(`\nResultado: ${ok} correctas, ${fail} con falla\n`);

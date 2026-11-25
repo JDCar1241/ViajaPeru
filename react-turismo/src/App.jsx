@@ -23,12 +23,16 @@ import MisSalidas from './paginas/guia/MisSalidas.jsx';
 import Asistencia from './paginas/guia/Asistencia.jsx';
 import AdminPaquetes from './paginas/admin/AdminPaquetes.jsx';
 import AdminPaquete from './paginas/admin/AdminPaquete.jsx';
+import AdminReclamos from './paginas/admin/AdminReclamos.jsx';
+import Terminos from './paginas/legal/Terminos.jsx';
+import Cancelaciones from './paginas/legal/Cancelaciones.jsx';
+import Contacto from './paginas/legal/Contacto.jsx';
+import LibroReclamaciones from './paginas/legal/LibroReclamaciones.jsx';
+import PiePagina from './componentes/PiePagina.jsx';
 
 // Vuelta desde el enlace de confirmación del correo (Supabase pone el token o el error en el hash)
 const esRetornoDeConfirmacion = (hash) =>
   /(^#|&)access_token=/.test(hash) || /(^#|&)error_code=/.test(hash);
-
-const ANIO = new Date().getFullYear();
 
 export default function App() {
   const [hash, setHash] = useState(window.location.hash);
@@ -63,6 +67,8 @@ export default function App() {
     vista = <CuentaConfirmada />;
   } else if (adminPaquete) {
     vista = <AdminPaquete key={hash} id={adminPaquete[1]} />;
+  } else if (hash.startsWith('#/admin/reclamos')) {
+    vista = <AdminReclamos />;
   } else if (hash.startsWith('#/admin/paquetes')) {
     vista = <AdminPaquetes />;
   } else if (guiaSalida) {
@@ -101,6 +107,14 @@ export default function App() {
     vista = <CambiarClave />;
   } else if (hash.startsWith('#/paquetes')) {
     vista = <main><Catalogo key={hash} /></main>;
+  } else if (hash.startsWith('#/terminos')) {
+    vista = <Terminos />;
+  } else if (hash.startsWith('#/cancelaciones')) {
+    vista = <Cancelaciones />;
+  } else if (hash.startsWith('#/contacto')) {
+    vista = <Contacto />;
+  } else if (hash.startsWith('#/libro-reclamaciones')) {
+    vista = <LibroReclamaciones key={hash} />;
   } else if (hash.startsWith('#/login')) {
     vista = <Login />;
   } else if (hash.startsWith('#/registro')) {
@@ -123,9 +137,7 @@ export default function App() {
 
       {vista}
 
-      <footer>
-        © {ANIO} ViajaPeru · Paquetes turísticos
-      </footer>
+      <PiePagina />
     </>
   );
 }

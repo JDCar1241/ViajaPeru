@@ -1,0 +1,141 @@
+.vp-pie {
+  padding: 48px 32px 28px;
+  background: var(--navy);
+  color: #C9D6EA;
+  font-size: 14px;
+  text-align: left;
+  border-top: 0;
+}
+
+.vp-pie__columnas {
+  display: grid;
+  grid-template-columns: 1.3fr 1fr 1fr;
+  gap: 40px;
+  max-width: 1120px;
+  margin: 0 auto;
+}
+
+.vp-pie h2 {
+  margin: 0 0 14px;
+  color: #fff;
+  font-size: 13px;
+  font-weight: 700;
+  letter-spacing: 0.1em;
+  text-transform: uppercase;
+}
+
+.vp-pie a {
+  color: #C9D6EA;
+  text-decoration: none;
+}
+
+.vp-pie a:hover {
+  color: #fff;
+  text-decoration: underline;
+}
+
+.vp-pie .logo {
+  color: #fff;
+}
+
+.vp-pie__marca p {
+  max-width: 320px;
+  margin: 12px 0 18px;
+  line-height: 1.6;
+}
+
+.vp-pie nav {
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+}
+
+.vp-pie__contacto {
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+  margin: 0;
+  padding: 0;
+  list-style: none;
+}
+
+.vp-pie__contacto li {
+  display: flex;
+  align-items: flex-start;
+  gap: 10px;
+  overflow-wrap: anywhere;
+}
+
+.vp-pie__contacto .icono {
+  flex-shrink: 0;
+  margin-top: 2px;
+  color: var(--sun, #F5B83D);
+}
+
+/* Acceso al Libro de Reclamaciones: visible, con el ícono del libro */
+.vp-pie a.vp-pie__libro {
+  display: inline-flex;
+  align-items: center;
+  gap: 12px;
+  padding: 10px 18px 10px 14px;
+  border: 1px solid rgba(255, 255, 255, 0.35);
+  border-radius: var(--radio-s);
+  background: #fff;
+  color: var(--navy);
+  font-weight: 700;
+  line-height: 1.2;
+}
+
+.vp-pie a.vp-pie__libro:hover {
+  background: var(--sky);
+  color: var(--navy);
+  text-decoration: none;
+}
+
+.vp-pie__libro .icono {
+  color: var(--blue);
+}
+
+.vp-pie__legal {
+  max-width: 1120px;
+  margin: 36px auto 0;
+  padding-top: 20px;
+  border-top: 1px solid rgba(255, 255, 255, 0.15);
+  color: #93A6C4;
+  font-size: 13px;
+  text-align: center;
+}
+
+@media (max-width: 760px) {
+  .vp-pie {
+    padding: 40px 16px 24px;
+  }
+
+  .vp-pie__columnas {
+    grid-template-columns: 1fr;
+    gap: 32px;
+  }
+}
+
+@media print {
+  .vp-pie {
+    display: none;
+  }
+}
+.vp-pie .logo span { color: #8DB8FF; }
+
+/* El pie queda abajo aunque la página sea corta */
+#root {
+  display: flex;
+  flex-direction: column;
+  min-height: 100vh;
+}
+
+#root > main {
+  box-sizing: border-box;
+  width: 100%;
+}
+
+#root > .vp-pie {
+  margin-top: auto;
+}

@@ -166,6 +166,17 @@ export default function MenuUsuario() {
             </a>
           )}
 
+          {rol === 'Administrador' && (
+            <a
+              role="menuitem"
+              className="vp-item"
+              href="#/admin/reclamos"
+              onClick={cerrar}
+            >
+              Libro de reclamaciones
+            </a>
+          )}
+
           {veSalidas && (
             <a
               role="menuitem"

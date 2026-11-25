@@ -1,11 +1,8 @@
 import PDFDocument from 'pdfkit';
+import { EMPRESA } from '../config/empresa.js';
 
 const NAVY = '#0A2540', BLUE = '#1456D6', GRIS = '#55657A', LINEA = '#DCE4EF', SKY = '#EAF2FF';
-const EMPRESA = {
-  nombre: process.env.EMPRESA_NOMBRE || 'ViajaPeru',
-  ruc: process.env.EMPRESA_RUC || '',
-  direccion: process.env.EMPRESA_DIRECCION || '',
-};
+// Datos del vendedor: config/empresa.js (variables EMPRESA_*)
 const PIE = process.env.PDF_PIE ||
   'Constancia de compra emitida por ViajaPeru. No constituye comprobante de pago electrónico de SUNAT.';
 
@@ -36,7 +33,7 @@ export function generarPdf(c) {
     doc.font('Helvetica-Bold').fontSize(26).fillColor(NAVY).text('Viaja', X, 48, { continued: true }).fillColor(BLUE).text('Peru');
     doc.font('Helvetica').fontSize(9).fillColor(GRIS);
     let yEmp = 82;
-    for (const linea of [EMPRESA.nombre !== 'ViajaPeru' ? EMPRESA.nombre : '', EMPRESA.direccion]) {
+    for (const linea of [/^ViajaPer[uú]$/i.test(EMPRESA.razon_social) ? '' : EMPRESA.razon_social, EMPRESA.direccion]) {
       if (linea) { doc.text(linea, X, yEmp, { width: 300 }); yEmp += 12; }
     }
 

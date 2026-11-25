@@ -802,6 +802,11 @@ export default function MiReserva() {
                     )}
                     </>
                     )}
+
+                    <small className="mr-terminos">
+                      Al pagar aceptas los <a href="#/terminos">Términos y condiciones</a> y la{' '}
+                      <a href="#/cancelaciones">Política de cancelaciones</a>.
+                    </small>
                   </div>
                 ) : pagada ? (
                   <div className="mr-pago-completo">

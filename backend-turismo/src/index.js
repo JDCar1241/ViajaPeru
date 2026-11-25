@@ -13,6 +13,8 @@ import registro from './rutas/registro.routes.js';
 import portalCliente from './rutas/portal-cliente.routes.js';
 import guia from './rutas/guia.routes.js';
 import adminCatalogo from './rutas/admin-catalogo.routes.js';
+import reclamos from './rutas/reclamos.routes.js';
+import { EMPRESA } from './config/empresa.js';
 
 import { fallo } from './middlewares/auth.middleware.js';
 
@@ -32,6 +34,11 @@ app.use(express.json({ limit: '100kb' }));
 // Comprobar disponibilidad de la API.
 app.get('/api/salud', (_req, res) => {
   res.json({ ok: true });
+});
+
+// Datos públicos del vendedor (pie de página, Contacto, Términos, Libro de Reclamaciones).
+app.get('/api/empresa', (_req, res) => {
+  res.json(EMPRESA);
 });
 
 // Rutas públicas.
@@ -62,6 +69,9 @@ app.use('/api/guia', guia);
 
 // Administrador: paquetes, salidas y guía de cada salida (HU-009).
 app.use('/api/admin', adminCatalogo);
+
+// Libro de Reclamaciones: registro público y respuestas del Administrador.
+app.use('/api/reclamos', reclamos);
 
 // Ruta no encontrada.
 app.use((_req, res) => {
