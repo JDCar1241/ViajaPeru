@@ -12,3 +12,13 @@
 .vp-mrz input{font-family:ui-monospace,SFMono-Regular,Consolas,monospace;letter-spacing:.04em;text-transform:uppercase}
 .vp-fila--telefono{grid-template-columns:minmax(0,.7fr) minmax(0,2fr)}
 @media(max-width:640px){.vp-fila--telefono{grid-template-columns:1fr}}
+
+/* Contraseña con botón de ojo (componentes/Campo.jsx) */
+.vp-clave{position:relative;display:grid}
+.vp-clave input{width:100%;box-sizing:border-box;padding-right:48px}
+.vp-clave__ojo{position:absolute;top:50%;right:4px;transform:translateY(-50%);display:grid;place-items:center;width:40px;height:36px;padding:0;border:0;border-radius:var(--radio-s);background:none;color:var(--muted);cursor:pointer}
+.vp-clave__ojo:hover{color:var(--navy);background:var(--sky)}
+.vp-clave__ojo:focus-visible{outline:2px solid var(--blue);outline-offset:1px}
+.vp-clave__ojo:disabled{opacity:.4;cursor:not-allowed}
+/* Ojo nativo de Edge / Internet Explorer: se oculta para no tener dos */
+.vp-clave input::-ms-reveal,.vp-clave input::-ms-clear{display:none}

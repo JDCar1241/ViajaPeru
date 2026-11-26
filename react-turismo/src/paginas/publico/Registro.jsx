@@ -26,7 +26,6 @@ const inicial = {
 
 export default function Registro() {
   const [f, setF] = useState(inicial);
-  const [ver, setVer] = useState(false);
   const [err, setErr] = useState({});
   const [fallo, setFallo] = useState('');
   const [enviando, setEnviando] = useState(false);
@@ -201,17 +200,14 @@ export default function Registro() {
           <fieldset className="rg-seccion">
             <legend><span className="rg-num">3</span>Contraseña</legend>
             <div className="rg-grid">
-              <Campo etiqueta="Contraseña" type={ver ? 'text' : 'password'} autoComplete="new-password" maxLength={CLAVE_MAX}
+              <Campo etiqueta="Contraseña" type="password" autoComplete="new-password" maxLength={CLAVE_MAX}
                 value={f.clave} onChange={set('clave')} error={err.clave} />
-              <Campo etiqueta="Confirmar contraseña" type={ver ? 'text' : 'password'} autoComplete="new-password" maxLength={CLAVE_MAX}
+              <Campo etiqueta="Confirmar contraseña" type="password" autoComplete="new-password" maxLength={CLAVE_MAX}
                 value={f.clave2} onChange={set('clave2')} error={err.clave2} />
             </div>
             <ul className="rg-reglas">
               {criteriosClave.map((c) => <li key={c.texto} className={c.ok(f.clave) ? 'ok' : ''}>{c.texto}</li>)}
             </ul>
-            <label className="rg-ver">
-              <input type="checkbox" checked={ver} onChange={(e) => setVer(e.target.checked)} /> Mostrar contraseñas
-            </label>
           </fieldset>
 
           {fallo && <p className="rg-alerta" role="alert">{fallo}</p>}

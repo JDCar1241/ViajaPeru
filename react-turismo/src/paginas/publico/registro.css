@@ -40,7 +40,6 @@
 .rg-reglas li::before{content:"○ "}
 .rg-reglas li.ok{color:var(--ok)}
 .rg-reglas li.ok::before{content:"● "}
-.rg-ver{display:flex;align-items:center;gap:8px;font-size:14px;color:var(--muted);cursor:pointer}
 .rg-alerta{margin:0;padding:12px 16px;border-radius:12px;background:var(--error-bg);font-weight:600;color:var(--error)}
 .rg-enviar{width:100%}
 .rg-pie{margin:0;text-align:center;color:var(--muted)}
