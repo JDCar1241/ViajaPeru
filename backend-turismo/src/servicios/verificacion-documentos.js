@@ -1,9 +1,9 @@
 
 import { analizarMrz } from '../utils/mrz.js';
-import { consultarPersona } from './factiliza.js';
+import { consultarPersona, ErrorServicio } from './factiliza.js';
 import { DOCUMENTOS } from '../utils/comunes.js';
 
-export { ErrorServicio } from './factiliza.js';
+export { ErrorServicio };
 
 const normalizar = (t) =>
   String(t || '')
@@ -86,7 +86,9 @@ export async function verificarDocumento(doc) {
     return {
       ok: false,
       noEncontrado: true, // la fuente no tiene el documento (pasa con menores de edad)
-      motivo: 'Factiliza no encontró el documento. Verifica el número ingresado.',
+      motivo: tipo === 'CE'
+        ? 'El carné de extranjería no figura en Migraciones. Verifica el número ingresado.'
+        : 'El DNI no figura en RENIEC. Verifica el número ingresado.',
     };
   }
 
@@ -126,4 +128,74 @@ export async function verificarDocumento(doc) {
       fecha_nacimiento: null,
     },
   };
+}
+
+// =========================================================
+// Identidad de los pasajeros de una reserva (presencial y online)
+// =========================================================
+
+const texto = (v) => (typeof v === 'string' ? v.trim() : '');
+
+// Verifica que el documento corresponda a ese nombre:
+//   DNI -> RENIEC   ·   CE -> Migraciones   ·   PASAPORTE -> su MRZ (ya leída en validarReserva)
+// Devuelve { ok } | { error, estado } (estado = código HTTP a responder).
+export async function verificarIdentidad(persona, quien) {
+  const tipo = texto(persona.tipo_documento).toUpperCase();
+
+  // El pasaporte se verifica con su MRZ (dígitos de control) en validarReserva:
+  // allí se toman número, nombres y nacimiento de la MRZ. No hay fuente oficial en línea.
+  if (tipo === 'PASAPORTE') {
+    return persona.verificado_mrz
+      ? { ok: true }
+      : { estado: 400, error: `Escribe la MRZ del pasaporte ${quien}.` };
+  }
+
+  const apellidos = texto(persona.apellidos).split(/\s+/).filter(Boolean);
+  const apellidoPaterno = apellidos.shift() || '';
+  const apellidoMaterno = apellidos.join(' ');
+
+  let resultado;
+
+  try {
+    resultado = await verificarDocumento({
+      tipo_documento: tipo,
+      numero_documento: texto(persona.nro_documento ?? persona.numero_documento ?? persona.dni).toUpperCase(),
+      nombres: texto(persona.nombres),
+      apellido_paterno: apellidoPaterno,
+      apellido_materno: apellidoMaterno,
+    });
+  } catch (e) {
+    // Factiliza caído o sin llave: no es culpa de quien registra.
+    if (e instanceof ErrorServicio) {
+      console.error(`Verificación de identidad ${quien} falló:`, e.message);
+      return {
+        estado: 503,
+        error: 'No pudimos verificar los documentos en este momento. Inténtalo de nuevo en unos minutos.',
+      };
+    }
+    throw e;
+  }
+
+  if (resultado.ok) return { ok: true };
+
+  // Muchos menores de edad no figuran en la fuente: sin resultado no es motivo para rechazarlos.
+  // Si SÍ figuran y los nombres no coinciden, se rechaza igual que a un adulto.
+  if (resultado.noEncontrado && persona.es_menor) return { ok: true };
+
+  return {
+    estado: 400,
+    error: `No se pudo verificar la identidad ${quien}: ${resultado.motivo}`,
+  };
+}
+
+// Verifica a todos los pasajeros de una reserva ya validada con validarReserva.
+// Las consultas van en paralelo; se informa el primer problema en el orden de la reserva.
+// verificarTitular: false cuando el titular son los datos de la propia cuenta (ya verificados).
+export async function verificarPasajeros({ cliente, acompanantes }, { verificarTitular = true } = {}) {
+  const tareas = [
+    verificarTitular ? verificarIdentidad(cliente, 'del titular') : Promise.resolve({ ok: true }),
+    ...acompanantes.map((a, i) => verificarIdentidad(a, `del acompañante ${i + 1}`)),
+  ];
+  const resultados = await Promise.all(tareas);
+  return resultados.find((r) => r.error) || { ok: true };
 }

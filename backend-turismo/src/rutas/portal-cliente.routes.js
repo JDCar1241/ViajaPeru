@@ -3,7 +3,7 @@ import { Router } from 'express';
 import { supabase } from '../config/supabase.js';
 import { requiereSesion, fallo } from '../middlewares/auth.middleware.js';
 import { validarReserva, paraRpc } from '../validaciones/reservas.validacion.js';
-import { verificarDocumento, ErrorServicio } from '../servicios/verificacion-documentos.js';
+import { verificarPasajeros } from '../servicios/verificacion-documentos.js';
 import { crearLimitador } from '../middlewares/limitar.js';
 import { enviarCorreo } from '../servicios/correo.js';
 import {
@@ -158,65 +158,6 @@ async function comprobarPropiedad(req, reservaId) {
   }
 
   return { usuario, reserva };
-}
-
-// Verifica identidad del titular o acompañante.
-// Devuelve { ok } | { error, estado } (estado = código HTTP a responder).
-async function verificarIdentidad(persona, quien) {
-  const tipo = txt(persona.tipo_documento).toUpperCase();
-
-  // El pasaporte se verifica con su MRZ (dígitos de control) en validarReserva:
-  // allí se toman número, nombres y nacimiento de la MRZ. No hay fuente oficial en línea.
-  if (tipo === 'PASAPORTE') {
-    return persona.verificado_mrz
-      ? { ok: true }
-      : { estado: 400, error: `Escribe la MRZ del pasaporte ${quien}.` };
-  }
-
-  const apellidos = txt(persona.apellidos)
-    .trim()
-    .split(/\s+/)
-    .filter(Boolean);
-
-  const apellidoPaterno = apellidos.shift() || '';
-  const apellidoMaterno = apellidos.join(' ');
-
-  let resultado;
-
-  try {
-    resultado = await verificarDocumento({
-      tipo_documento: tipo,
-      numero_documento: txt(
-        persona.nro_documento ??
-        persona.numero_documento ??
-        persona.dni
-      ).toUpperCase(),
-      nombres: txt(persona.nombres),
-      apellido_paterno: apellidoPaterno,
-      apellido_materno: apellidoMaterno,
-    });
-  } catch (e) {
-    // Factiliza caído o sin llave: no es culpa del usuario.
-    if (e instanceof ErrorServicio) {
-      console.error(`Verificación de identidad ${quien} falló:`, e.message);
-      return {
-        estado: 503,
-        error: 'No pudimos verificar los documentos en este momento. Inténtalo de nuevo en unos minutos.',
-      };
-    }
-    throw e;
-  }
-
-  if (resultado.ok) return { ok: true };
-
-  // Muchos menores de edad no figuran en la fuente: sin resultado no es motivo para rechazarlos.
-  // Si SÍ figuran y los nombres no coinciden, se rechaza igual que a un adulto.
-  if (resultado.noEncontrado && persona.es_menor) return { ok: true };
-
-  return {
-    estado: 400,
-    error: `No se pudo verificar la identidad ${quien}: ${resultado.motivo}`,
-  };
 }
 
 // GET /api/portal-cliente/saldo
@@ -869,28 +810,11 @@ router.post('/reservas', async (req, res, next) => {
       return fallo(res, 400, v.error);
     }
 
-    // El titular manual debe demostrar su identidad.
-    if (modoManual) {
-      const identidadTitular = await verificarIdentidad(
-        v.cliente,
-        'del titular'
-      );
-
-      if (identidadTitular.error) {
-        return fallo(res, identidadTitular.estado, identidadTitular.error);
-      }
-    }
-
-    // Verificar también a los acompañantes.
-    for (const [i, acompanante] of v.acompanantes.entries()) {
-      const identidad = await verificarIdentidad(
-        acompanante,
-        `del acompañante ${i + 1}`
-      );
-
-      if (identidad.error) {
-        return fallo(res, identidad.estado, identidad.error);
-      }
+    // Que cada documento corresponda a ese nombre (DNI -> RENIEC, CE -> Migraciones,
+    // pasaporte -> MRZ). El titular con los datos de la cuenta ya se verificó al registrarse.
+    const identidad = await verificarPasajeros(v, { verificarTitular: modoManual });
+    if (identidad.error) {
+      return fallo(res, identidad.estado, identidad.error);
     }
 
     const { data, error } = await supabase.rpc('crear_reserva', {

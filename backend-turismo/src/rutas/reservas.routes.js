@@ -3,12 +3,14 @@ import { supabase } from '../config/supabase.js';
 import { requiereSesion, fallo } from '../middlewares/auth.middleware.js';
 import { ROLES_CAJA } from '../utils/comunes.js';
 import { validarReserva, paraRpc } from '../validaciones/reservas.validacion.js';
+import { verificarPasajeros } from '../servicios/verificacion-documentos.js';
 
 const router = Router();
 
 // POST /api/reservas
 // { salida_id, cliente:{tipo_documento,nro_documento,apellidos,nombres,fecha_nacimiento,correo,telefono},
-//   acompanantes:[{tipo_documento,nro_documento,apellidos,nombres,fecha_nacimiento}] }
+//   acompanantes:[{tipo_documento,nro_documento,apellidos,nombres,fecha_nacimiento,telefono,mrz?}] }
+// Cada documento se verifica contra el nombre antes de crear la reserva.
 router.post('/', requiereSesion(ROLES_CAJA), async (req, res, next) => {
   try {
     const body = req.body || {};
@@ -23,6 +25,11 @@ router.post('/', requiereSesion(ROLES_CAJA), async (req, res, next) => {
 
     const v = validarReserva(body, salida.fecha_inicio_viaje);
     if (v.error) return fallo(res, 400, v.error);
+
+    // Que cada documento corresponda a ese nombre (DNI -> RENIEC, CE -> Migraciones,
+    // pasaporte -> MRZ), igual que en la reserva online. Menores que no figuran: se aceptan.
+    const identidad = await verificarPasajeros(v);
+    if (identidad.error) return fallo(res, identidad.estado, identidad.error);
 
     const { data, error } = await supabase.rpc('crear_reserva', {
       p_salida_id: salidaId,
