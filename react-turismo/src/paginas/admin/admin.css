@@ -41,7 +41,7 @@
 }
 .ad-grid { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 16px; }
 .ad-campo { display: grid; gap: 6px; font-size: 13px; font-weight: 600; color: var(--muted); }
-.ad-campo input, .ad-campo select, .ad-campo textarea, .ad-actividad input {
+.ad-campo input, .ad-campo select, .ad-campo textarea, .ad-actividad input, .ad-actividad select {
   padding: 10px 12px;
   border: 1px solid var(--line);
   border-radius: 8px;
@@ -53,7 +53,7 @@
 }
 .ad-campo textarea { resize: vertical; }
 .ad-campo input[aria-invalid="true"] { border-color: var(--error); }
-.ad-campo input:focus-visible, .ad-campo select:focus-visible, .ad-campo textarea:focus-visible, .ad-actividad input:focus-visible {
+.ad-campo input:focus-visible, .ad-campo select:focus-visible, .ad-campo textarea:focus-visible, .ad-actividad input:focus-visible, .ad-actividad select:focus-visible {
   outline: 2px solid var(--blue);
   outline-offset: 1px;
 }
@@ -66,7 +66,10 @@
 .ad-itinerario { display: grid; gap: 10px; margin: 0; padding: 16px; border: 1px dashed var(--line); border-radius: 12px; }
 .ad-itinerario legend { padding: 0 6px; font-weight: 700; color: var(--navy); }
 .ad-itinerario > .btn { justify-self: start; }
-.ad-actividad { display: grid; grid-template-columns: 110px 1fr auto; gap: 8px; align-items: center; }
+/* Día | Hora | Descripción | Quitar */
+.ad-actividad { display: grid; grid-template-columns: 100px 120px 1fr auto; gap: 8px; align-items: center; }
+.ad-actividad--cabecera { font-size: 12px; font-weight: 700; color: var(--muted); text-transform: uppercase; letter-spacing: .04em; }
+.ad-campo small { font-weight: 500; }
 .ad-actividad__botones { display: flex; gap: 4px; }
 .ad-icono {
   width: 36px; height: 36px;
@@ -100,6 +103,9 @@
   .ad-fila { grid-template-columns: 64px 1fr; }
   .ad-fila img, .ad-sinfoto { width: 64px; height: 48px; }
   .ad-precio { grid-column: 2; }
-  .ad-actividad { grid-template-columns: 1fr; }
+  .ad-actividad { grid-template-columns: 100px 1fr auto; }
+  .ad-actividad > input:not([type="time"]) { grid-column: 1 / -1; }
+  .ad-actividad__botones { grid-row: 1; grid-column: 3; }
+  .ad-actividad--cabecera { display: none; }
   .ad-panel { padding: 16px; }
 }

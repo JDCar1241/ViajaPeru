@@ -2,13 +2,26 @@ import { useCallback, useEffect, useState } from 'react';
 import './admin.css';
 import { pedir } from '../../servicios/api.js';
 import { useSesion } from '../../servicios/auth.js';
-import { aInputLima, ahoraLima, fechaHoraLima } from './fechas.js';
+import {
+  fechaHoraLima, hoyLima, aDiaLima, MAX_CUPOS, MAX_DIAS,
+  normalizarHora, ordenarItinerario, horaDeSalida,
+} from './fechas.js';
 import SubirFoto from './SubirFoto.jsx';
 import Confirmar from '../../componentes/Confirmar.jsx';
 import Icono from '../../componentes/Icono.jsx';
 
 // HU-009 · Crear / editar un paquete y gestionar sus salidas (fechas, cupos y guía).
+// Reglas: foto e itinerario obligatorios; cada actividad tiene día y hora (24 h);
+// la salida toma la hora de la primera actividad del Día 1; el guía es obligatorio.
 const VACIO = { nombre: '', destino: '', costo: '', foto_url: '', aclaraciones: '', itinerario: [] };
+
+// Datos antiguos: sin día (-> Día 1) y con horas escritas a mano (-> "HH:mm")
+const normalizarItinerario = (it) =>
+  (Array.isArray(it) ? it : []).map((a) => ({
+    dia: Number(a?.dia) >= 1 ? Number(a.dia) : 1,
+    hora: normalizarHora(a?.hora),
+    descripcion: a?.descripcion || '',
+  }));
 
 const enviar = (ruta, method, cuerpo) =>
   pedir(ruta, { method, body: cuerpo === undefined ? undefined : JSON.stringify(cuerpo) });
@@ -28,6 +41,8 @@ export default function AdminPaquete({ id }) {
   const [guardando, setGuardando] = useState(false);
   const [confirmarEliminar, setConfirmarEliminar] = useState(false);
   const [eliminando, setEliminando] = useState(false);
+  // Hora de salida según el itinerario GUARDADO (no el que se está editando)
+  const [horaSalida, setHoraSalida] = useState(null);
 
   const cargar = useCallback(async () => {
     try {
@@ -42,8 +57,9 @@ export default function AdminPaquete({ id }) {
           costo: String(p.costo ?? ''),
           foto_url: p.foto_url || '',
           aclaraciones: p.aclaraciones || '',
-          itinerario: Array.isArray(p.itinerario) ? p.itinerario : [],
+          itinerario: normalizarItinerario(p.itinerario),
         });
+        setHoraSalida(horaDeSalida(p.itinerario));
         setSalidas(p.salidas || []);
       }
       setGuias(Array.isArray(g) ? g : []);
@@ -77,28 +93,47 @@ export default function AdminPaquete({ id }) {
 
   const cambiarActividad = (k, campo, valor) =>
     setForm({ ...form, itinerario: form.itinerario.map((a, i) => (i === k ? { ...a, [campo]: valor } : a)) });
-  const agregarActividad = () => setForm({ ...form, itinerario: [...form.itinerario, { hora: '', descripcion: '' }] });
+  // La nueva actividad sigue en el mismo día que la última
+  const agregarActividad = () => {
+    const ultimoDia = form.itinerario.length ? form.itinerario[form.itinerario.length - 1].dia : 1;
+    setForm({ ...form, itinerario: [...form.itinerario, { dia: ultimoDia, hora: '', descripcion: '' }] });
+  };
   const quitarActividad = (k) => setForm({ ...form, itinerario: form.itinerario.filter((_, i) => i !== k) });
-  const moverActividad = (k, d) => {
-    const it = [...form.itinerario];
-    [it[k], it[k + d]] = [it[k + d], it[k]];
-    setForm({ ...form, itinerario: it });
+
+  // Revisión en pantalla (el Backend vuelve a validar todo)
+  const revisar = () => {
+    const n = {};
+    if (!form.foto_url) n.foto_url = 'Sube la foto del paquete.';
+    if (form.itinerario.length === 0) n.itinerario = 'El paquete debe tener al menos una actividad en el itinerario.';
+    else if (form.itinerario.some((a) => !a.hora || !a.descripcion.trim())) n.itinerario = 'Cada actividad necesita día, hora y descripción.';
+    else if (ordenarItinerario(form.itinerario)[0].dia !== 1) n.itinerario = 'El itinerario debe empezar en el Día 1.';
+    return n;
   };
 
   const guardar = async (e) => {
     e.preventDefault();
-    setGuardando(true);
-    setErrores({});
     setAviso(null);
+    const n = revisar();
+    setErrores(n);
+    if (Object.keys(n).length) {
+      setAviso({ ok: false, texto: 'Revisa los datos del paquete.' });
+      return;
+    }
+    setGuardando(true);
     try {
-      const cuerpo = { ...form, costo: Number(form.costo) };
+      const cuerpo = {
+        ...form,
+        costo: Number(form.costo),
+        itinerario: form.itinerario.map((a) => ({ ...a, dia: Number(a.dia), descripcion: a.descripcion.trim() })),
+      };
       if (nuevo) {
         const r = await enviar('/admin/paquetes', 'POST', cuerpo);
         window.location.hash = `#/admin/paquete/${r.id}`;
         return;
       }
-      await enviar(`/admin/paquetes/${id}`, 'PUT', cuerpo);
-      setAviso({ ok: true, texto: 'Cambios guardados.' });
+      const r = await enviar(`/admin/paquetes/${id}`, 'PUT', cuerpo);
+      await cargar(); // itinerario ya ordenado y salidas con su nueva hora
+      setAviso({ ok: true, texto: r?.mensaje || 'Cambios guardados.' });
     } catch (err) {
       setErrores(err.errores || {});
       setAviso({ ok: false, texto: err.message });
@@ -135,7 +170,7 @@ export default function AdminPaquete({ id }) {
                  type="number" min="0.01" step="0.01" inputMode="decimal" required />
         </div>
 
-        <SubirFoto url={form.foto_url} error={errores.foto_url}
+        <SubirFoto url={form.foto_url} error={errores.foto_url} obligatoria
                    onChange={(url) => setForm((f) => ({ ...f, foto_url: url }))} />
 
         <label className="ad-campo">Aclaraciones / información importante
@@ -144,17 +179,30 @@ export default function AdminPaquete({ id }) {
         </label>
 
         <fieldset className="ad-itinerario">
-          <legend>Itinerario</legend>
+          <legend>Itinerario (obligatorio)</legend>
+          <p className="muted ad-nota">
+            Indica el día y la hora (formato 24 h) de cada actividad. Al guardar se ordena por día y hora.
+            La primera actividad del Día 1 es la hora de salida de todas las salidas del paquete.
+          </p>
           {form.itinerario.length === 0 && <p className="muted">Sin actividades. Agrega la primera.</p>}
+          {form.itinerario.length > 0 && (
+            <div className="ad-actividad ad-actividad--cabecera" aria-hidden="true">
+              <span>Día</span><span>Hora</span><span>Actividad</span><span />
+            </div>
+          )}
           {form.itinerario.map((a, k) => (
             <div className="ad-actividad" key={k}>
-              <input aria-label={`Hora de la actividad ${k + 1}`} placeholder="06:00" maxLength={20}
+              <select aria-label={`Día de la actividad ${k + 1}`} value={a.dia}
+                      onChange={(e) => cambiarActividad(k, 'dia', Number(e.target.value))}>
+                {Array.from({ length: MAX_DIAS }, (_, i) => i + 1).map((d) => (
+                  <option key={d} value={d}>Día {d}</option>
+                ))}
+              </select>
+              <input type="time" aria-label={`Hora de la actividad ${k + 1}`} required
                      value={a.hora} onChange={(e) => cambiarActividad(k, 'hora', e.target.value)} />
               <input aria-label={`Descripción de la actividad ${k + 1}`} placeholder="Recojo del hotel" maxLength={300}
                      value={a.descripcion} onChange={(e) => cambiarActividad(k, 'descripcion', e.target.value)} />
               <div className="ad-actividad__botones">
-                <button type="button" className="ad-icono" disabled={k === 0} onClick={() => moverActividad(k, -1)} aria-label="Subir">↑</button>
-                <button type="button" className="ad-icono" disabled={k === form.itinerario.length - 1} onClick={() => moverActividad(k, 1)} aria-label="Bajar">↓</button>
                 <button type="button" className="ad-icono" onClick={() => quitarActividad(k)} aria-label="Quitar"><Icono nombre="x" tamano={16} /></button>
               </div>
             </div>
@@ -173,7 +221,7 @@ export default function AdminPaquete({ id }) {
         </div>
       </form>
 
-      {!nuevo && <Salidas paqueteId={id} salidas={salidas} guias={guias} recargar={cargar} />}
+      {!nuevo && <Salidas paqueteId={id} salidas={salidas} guias={guias} horaSalida={horaSalida} recargar={cargar} />}
 
       <Confirmar
         abierto={confirmarEliminar}
@@ -205,7 +253,7 @@ function Texto({ etiqueta, valor, error, ...props }) {
 // Salidas del paquete
 // ---------------------------------------------
 
-function Salidas({ paqueteId, salidas, guias, recargar }) {
+function Salidas({ paqueteId, salidas, guias, horaSalida, recargar }) {
   const [nueva, setNueva] = useState({ fecha: '', cupos_totales: '', guia_id: '' });
   const [aviso, setAviso] = useState('');
   const [ocupado, setOcupado] = useState(false);
@@ -239,23 +287,35 @@ function Salidas({ paqueteId, salidas, guias, recargar }) {
     <section className="ad-panel">
       <h2>Salidas (fechas y cupos)</h2>
 
-      <form className="ad-nueva" onSubmit={programar}>
-        <label className="ad-campo">Fecha y hora (Lima)
-          <input type="datetime-local" required min={ahoraLima()} value={nueva.fecha}
-                 onChange={(e) => setNueva({ ...nueva, fecha: e.target.value })} />
-        </label>
-        <label className="ad-campo">Cupos
-          <input type="number" required min="1" max="500" step="1" value={nueva.cupos_totales}
-                 onChange={(e) => setNueva({ ...nueva, cupos_totales: e.target.value })} />
-        </label>
-        <label className="ad-campo">Guía
-          <select value={nueva.guia_id} onChange={(e) => setNueva({ ...nueva, guia_id: e.target.value })}>
-            <option value="">Sin asignar</option>
-            {guias.map((g) => <option key={g.id} value={g.id}>{g.nombre}</option>)}
-          </select>
-        </label>
-        <button className="btn" type="submit" disabled={ocupado}>Programar salida</button>
-      </form>
+      {!horaSalida ? (
+        <p className="vp-alerta" role="status">
+          Este paquete no tiene itinerario guardado. Agrega al menos una actividad y guarda los cambios
+          para poder programar salidas.
+        </p>
+      ) : guias.length === 0 ? (
+        <p className="vp-alerta" role="status">
+          No hay guías turísticos registrados. Cada salida necesita un guía: crea un usuario con rol Guía.
+        </p>
+      ) : (
+        <form className="ad-nueva" onSubmit={programar}>
+          <label className="ad-campo">Fecha de salida
+            <input type="date" required min={hoyLima()} value={nueva.fecha}
+                   onChange={(e) => setNueva({ ...nueva, fecha: e.target.value })} />
+            <small className="muted">Hora: {horaSalida} (primera actividad del Día 1)</small>
+          </label>
+          <label className="ad-campo">Cupos (máx. {MAX_CUPOS})
+            <input type="number" required min="1" max={MAX_CUPOS} step="1" value={nueva.cupos_totales}
+                   onChange={(e) => setNueva({ ...nueva, cupos_totales: e.target.value })} />
+          </label>
+          <label className="ad-campo">Guía turístico
+            <select required value={nueva.guia_id} onChange={(e) => setNueva({ ...nueva, guia_id: e.target.value })}>
+              <option value="" disabled>Elige un guía</option>
+              {guias.map((g) => <option key={g.id} value={g.id}>{g.nombre}</option>)}
+            </select>
+          </label>
+          <button className="btn" type="submit" disabled={ocupado}>Programar salida</button>
+        </form>
+      )}
 
       {aviso && <p className="vp-alerta" role="alert">{aviso}</p>}
 
@@ -264,7 +324,7 @@ function Salidas({ paqueteId, salidas, guias, recargar }) {
         : (
           <div className="ad-salidas">
             {salidas.map((s) => (
-              <Salida key={s.id} s={s} guias={guias} ocupado={ocupado} accion={accion} />
+              <Salida key={s.id} s={s} guias={guias} horaSalida={horaSalida} ocupado={ocupado} accion={accion} />
             ))}
           </div>
         )}
@@ -272,7 +332,7 @@ function Salidas({ paqueteId, salidas, guias, recargar }) {
   );
 }
 
-function Salida({ s, guias, ocupado, accion }) {
+function Salida({ s, guias, horaSalida, ocupado, accion }) {
   const [editando, setEditando] = useState(false);
   const [f, setF] = useState(null);
   const [confirmarEliminar, setConfirmarEliminar] = useState(false);
@@ -283,7 +343,7 @@ function Salida({ s, guias, ocupado, accion }) {
   const editable = !cancelada && !pasada;
 
   const abrir = () => {
-    setF({ fecha: aInputLima(s.fecha_inicio_viaje), cupos_totales: String(s.cupos_totales), guia_id: s.guia?.id || '' });
+    setF({ fecha: aDiaLima(s.fecha_inicio_viaje), cupos_totales: String(s.cupos_totales), guia_id: s.guia?.id || '' });
     setEditando(true);
   };
 
@@ -291,7 +351,8 @@ function Salida({ s, guias, ocupado, accion }) {
     e.preventDefault();
     accion(async () => {
       const cuerpo = { cupos_totales: Number(f.cupos_totales), guia_id: f.guia_id || null };
-      if (s.reservas_activas === 0) cuerpo.fecha = f.fecha;
+      // La fecha solo se envía si se puede cambiar; la hora la pone el Backend (itinerario)
+      if (s.reservas_activas === 0 && horaSalida) cuerpo.fecha = f.fecha;
       await enviar(`/admin/salidas/${s.id}`, 'PUT', cuerpo);
       setEditando(false);
     });
@@ -324,19 +385,20 @@ function Salida({ s, guias, ocupado, accion }) {
 
       {editando ? (
         <form className="ad-nueva" onSubmit={guardar}>
-          <label className="ad-campo">Fecha y hora (Lima)
-            <input type="datetime-local" required min={ahoraLima()} value={f.fecha}
-                   disabled={s.reservas_activas > 0}
+          <label className="ad-campo">Fecha de salida
+            <input type="date" required min={hoyLima()} value={f.fecha}
+                   disabled={s.reservas_activas > 0 || !horaSalida}
                    title={s.reservas_activas > 0 ? 'Tiene reservas: la fecha no se puede cambiar' : undefined}
                    onChange={(e) => setF({ ...f, fecha: e.target.value })} />
+            {horaSalida && <small className="muted">Hora: {horaSalida} (primera actividad del Día 1)</small>}
           </label>
-          <label className="ad-campo">Cupos totales
-            <input type="number" required min={Math.max(1, reservados)} max="500" step="1" value={f.cupos_totales}
+          <label className="ad-campo">Cupos totales (máx. {Math.max(MAX_CUPOS, s.cupos_totales)})
+            <input type="number" required min={Math.max(1, reservados)} max={Math.max(MAX_CUPOS, s.cupos_totales)} step="1" value={f.cupos_totales}
                    onChange={(e) => setF({ ...f, cupos_totales: e.target.value })} />
           </label>
-          <label className="ad-campo">Guía
-            <select value={f.guia_id} onChange={(e) => setF({ ...f, guia_id: e.target.value })}>
-              <option value="">Sin asignar</option>
+          <label className="ad-campo">Guía turístico
+            <select required value={f.guia_id} onChange={(e) => setF({ ...f, guia_id: e.target.value })}>
+              <option value="" disabled>Elige un guía</option>
               {guias.map((g) => <option key={g.id} value={g.id}>{g.nombre}</option>)}
             </select>
           </label>

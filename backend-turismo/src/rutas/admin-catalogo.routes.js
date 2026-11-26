@@ -47,6 +47,19 @@ async function borrarFoto(url) {
   if (error) console.error('No se pudo borrar la foto', ruta, error.message);
 }
 
+const MAX_ACTIVIDADES = 40;
+const MAX_DIAS = 30;
+const RE_HORA = /^([01]\d|2[0-3]):[0-5]\d$/; // 24 h: 00:00 a 23:59
+
+// Orden cronológico: día y luego hora. Si coinciden, se respeta el orden en que se escribieron.
+const ordenarItinerario = (it) =>
+  it
+    .map((a, k) => ({ a, k }))
+    .sort((x, y) => (Number(x.a.dia) || 1) - (Number(y.a.dia) || 1)
+      || String(x.a.hora).localeCompare(String(y.a.hora))
+      || x.k - y.k)
+    .map(({ a }) => a);
+
 const esUuid = (v) => typeof v === 'string' && /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i.test(v);
 
 // ---------------------------------------------
@@ -67,8 +80,11 @@ function validarPaquete(b = {}) {
     errores.costo = 'El precio debe ser mayor a 0, con hasta 2 decimales.';
   }
 
+  // La foto es obligatoria: el catálogo muestra una por paquete.
   const foto = txt(b.foto_url);
-  if (foto) {
+  if (!foto) {
+    errores.foto_url = 'Sube la foto del paquete.';
+  } else {
     let ok = false;
     try { ok = ['http:', 'https:'].includes(new URL(foto).protocol); } catch { ok = false; }
     if (!ok || foto.length > 500) errores.foto_url = 'La foto debe ser un enlace http(s) válido.';
@@ -77,14 +93,30 @@ function validarPaquete(b = {}) {
   const aclaraciones = txt(b.aclaraciones);
   if (aclaraciones.length > 2000) errores.aclaraciones = 'Las aclaraciones no pueden pasar de 2000 caracteres.';
 
+  // Itinerario obligatorio. Cada actividad: { dia: 1..30, hora: "HH:mm" (24 h), descripcion }.
+  // Se guarda ordenado por día y hora. La primera actividad (Día 1) marca la hora de las salidas.
   let itinerario = [];
-  if (b.itinerario !== undefined && !Array.isArray(b.itinerario)) {
-    errores.itinerario = 'El itinerario no es válido.';
+  if (!Array.isArray(b.itinerario)) {
+    errores.itinerario = 'Agrega el itinerario del paquete.';
   } else {
-    itinerario = (b.itinerario || []).map((i) => ({ hora: txt(i?.hora), descripcion: txt(i?.descripcion) }));
-    if (itinerario.length > 40) errores.itinerario = 'El itinerario puede tener como máximo 40 actividades.';
-    else if (itinerario.some((i) => !i.hora || i.hora.length > 20 || !i.descripcion || i.descripcion.length > 300)) {
-      errores.itinerario = 'Cada actividad necesita hora (máx. 20 caracteres) y descripción (máx. 300).';
+    itinerario = b.itinerario.map((i) => ({
+      dia: Number(i?.dia),
+      hora: txt(i?.hora),
+      descripcion: txt(i?.descripcion),
+    }));
+    if (itinerario.length === 0) {
+      errores.itinerario = 'El paquete debe tener al menos una actividad en el itinerario.';
+    } else if (itinerario.length > MAX_ACTIVIDADES) {
+      errores.itinerario = `El itinerario puede tener como máximo ${MAX_ACTIVIDADES} actividades.`;
+    } else if (itinerario.some((i) => !Number.isInteger(i.dia) || i.dia < 1 || i.dia > MAX_DIAS)) {
+      errores.itinerario = `Cada actividad necesita un día entre 1 y ${MAX_DIAS}.`;
+    } else if (itinerario.some((i) => !RE_HORA.test(i.hora))) {
+      errores.itinerario = 'Cada actividad necesita una hora en formato 24 h (por ejemplo 06:30).';
+    } else if (itinerario.some((i) => !i.descripcion || i.descripcion.length > 300)) {
+      errores.itinerario = 'Cada actividad necesita una descripción (máx. 300 caracteres).';
+    } else {
+      itinerario = ordenarItinerario(itinerario);
+      if (itinerario[0].dia !== 1) errores.itinerario = 'El itinerario debe empezar en el Día 1.';
     }
   }
 
@@ -106,7 +138,30 @@ function fechaLima(v) {
   return Number.isNaN(d.getTime()) ? null : d;
 }
 
-const cuposValidos = (v) => Number.isInteger(v) && v >= 1 && v <= 500;
+export const MAX_CUPOS = 40; // cupos por salida (un bus turístico mediano)
+const MSG_CUPOS = `Los cupos deben ser un número entero entre 1 y ${MAX_CUPOS}.`;
+const cuposValidos = (v) => Number.isInteger(v) && v >= 1 && v <= MAX_CUPOS;
+
+// "YYYY-MM-DD" + "HH:mm" en hora de Lima -> Date
+const fechaConHora = (dia, hora) =>
+  typeof dia === 'string' && /^\d{4}-\d{2}-\d{2}$/.test(dia) ? fechaLima(`${dia}T${hora}`) : null;
+
+// Date -> "YYYY-MM-DD" en hora de Lima
+const diaLima = (d) => new Date(d).toLocaleDateString('en-CA', { timeZone: 'America/Lima' });
+
+// Date -> "HH:mm" en hora de Lima
+const horaLima = (d) =>
+  new Date(d).toLocaleTimeString('en-GB', { hour: '2-digit', minute: '2-digit', hour12: false, timeZone: 'America/Lima' });
+
+// Hora de la primera actividad del Día 1 (o null si el paquete no tiene itinerario)
+const horaInicio = (itinerario) =>
+  Array.isArray(itinerario) && itinerario.length ? ordenarItinerario(itinerario)[0].hora : null;
+
+async function itinerarioDe(paqueteId) {
+  const { data, error } = await supabase.from('paquetes').select('id, itinerario').eq('id', paqueteId).maybeSingle();
+  if (error) throw error;
+  return data;
+}
 
 async function guiaValido(id) {
   const { data, error } = await supabase.from('perfiles').select('id').eq('id', id).eq('rol', 'Guia').maybeSingle();
@@ -163,9 +218,41 @@ router.put('/paquetes/:id', async (req, res, next) => {
     const { errores, valores } = validarPaquete(req.body);
     if (errores) return res.status(400).json({ error: 'Revisa los datos del paquete.', mensaje: 'Revisa los datos del paquete.', errores });
 
-    const { data: anterior, error: e1 } = await supabase.from('paquetes').select('foto_url').eq('id', id).maybeSingle();
+    const { data: anterior, error: e1 } = await supabase.from('paquetes').select('foto_url, itinerario').eq('id', id).maybeSingle();
     if (e1) throw e1;
     if (!anterior) return fallo(res, 404, 'Paquete no encontrado.');
+
+    // La hora de cada salida debe ser exactamente la de la primera actividad (Día 1).
+    // Las salidas futuras con otra hora se mueven; las que ya tienen reservas no se tocan
+    // (sus clientes compraron esa hora) y en ese caso no se permite el cambio.
+    const horaNueva = horaInicio(valores.itinerario);
+
+    const { data: futuras, error: e2 } = await supabase
+      .from('salidas')
+      .select('id, fecha_inicio_viaje, reservas(estado)')
+      .eq('paquete_id', id)
+      .neq('estado', 'Cancelada')
+      .gt('fecha_inicio_viaje', new Date().toISOString());
+    if (e2) throw e2;
+
+    const distintas = (futuras || []).filter((s) => horaLima(s.fecha_inicio_viaje) !== horaNueva);
+    const conReservas = distintas.filter((s) =>
+      (s.reservas || []).some((r) => ['Pendiente', 'Pagada'].includes(r.estado)));
+
+    if (conReservas.length) {
+      const horas = [...new Set(conReservas.map((s) => horaLima(s.fecha_inicio_viaje)))].join(', ');
+      return fallo(res, 409,
+        `La primera actividad del Día 1 marca la hora de salida, y ${conReservas.length} salida(s) futura(s) ` +
+        `con reservas salen a las ${horas}. Usa esa hora en la primera actividad.`);
+    }
+
+    const mover = distintas.map((s) => ({
+      id: s.id,
+      fecha: fechaConHora(diaLima(s.fecha_inicio_viaje), horaNueva),
+    }));
+    if (mover.some((m) => !m.fecha || m.fecha <= new Date())) {
+      return fallo(res, 409, 'Con la nueva hora, alguna salida quedaría en el pasado. Revisa la hora de la primera actividad.');
+    }
 
     const { data, error } = await supabase.from('paquetes').update(valores).eq('id', id).select('id').maybeSingle();
     if (error) throw error;
@@ -173,7 +260,17 @@ router.put('/paquetes/:id', async (req, res, next) => {
 
     if (anterior.foto_url && anterior.foto_url !== valores.foto_url) await borrarFoto(anterior.foto_url);
 
-    res.json({ id, mensaje: 'Paquete actualizado.' });
+    for (const m of mover) {
+      const { error: e3 } = await supabase.from('salidas').update({ fecha_inicio_viaje: m.fecha.toISOString() }).eq('id', m.id);
+      if (e3) console.error('No se pudo mover la salida', m.id, e3.message);
+    }
+
+    res.json({
+      id,
+      mensaje: mover.length
+        ? `Paquete actualizado. ${mover.length} salida(s) futura(s) pasaron a las ${horaNueva}.`
+        : 'Paquete actualizado.',
+    });
   } catch (e) { next(e); }
 });
 
@@ -235,25 +332,31 @@ router.post(
 // SALIDAS (fechas y cupos de cada paquete)
 // =============================================
 
-// POST /api/admin/paquetes/:id/salidas   { fecha: "YYYY-MM-DDTHH:mm" (Lima), cupos_totales, guia_id? }
+// POST /api/admin/paquetes/:id/salidas   { fecha: "YYYY-MM-DD", cupos_totales, guia_id }
+// La hora NO se elige: es la de la primera actividad del itinerario (Día 1).
 router.post('/paquetes/:id/salidas', async (req, res, next) => {
   try {
     const paqueteId = idValido(req.params.id);
     if (!paqueteId) return fallo(res, 400, 'El paquete no es válido.');
 
-    const fecha = fechaLima(req.body?.fecha);
-    if (!fecha) return fallo(res, 400, 'Indica la fecha y hora de salida.');
+    const paquete = await itinerarioDe(paqueteId);
+    if (!paquete) return fallo(res, 404, 'Paquete no encontrado.');
+
+    const hora = horaInicio(paquete.itinerario);
+    if (!hora || !RE_HORA.test(hora)) {
+      return fallo(res, 409, 'El paquete no tiene itinerario (o su hora no es válida). Guarda el itinerario antes de programar salidas.');
+    }
+
+    const fecha = fechaConHora(req.body?.fecha, hora);
+    if (!fecha) return fallo(res, 400, 'Indica la fecha de salida.');
     if (fecha <= new Date()) return fallo(res, 400, 'La fecha de salida debe ser futura.');
 
     const cupos = req.body?.cupos_totales;
-    if (!cuposValidos(cupos)) return fallo(res, 400, 'Los cupos deben ser un número entero entre 1 y 500.');
+    if (!cuposValidos(cupos)) return fallo(res, 400, MSG_CUPOS);
 
     const guia = req.body?.guia_id || null;
-    if (guia && (!esUuid(guia) || !(await guiaValido(guia)))) return fallo(res, 400, 'El guía elegido no es válido.');
-
-    const { data: paquete, error: e1 } = await supabase.from('paquetes').select('id').eq('id', paqueteId).maybeSingle();
-    if (e1) throw e1;
-    if (!paquete) return fallo(res, 404, 'Paquete no encontrado.');
+    if (!guia) return fallo(res, 400, 'Elige el guía turístico de la salida.');
+    if (!esUuid(guia) || !(await guiaValido(guia))) return fallo(res, 400, 'El guía elegido no es válido.');
 
     const { data, error } = await supabase
       .from('salidas')
@@ -278,31 +381,45 @@ const ERRORES_SALIDA = {
   SALIDA_CANCELADA: [409, 'La salida está cancelada y ya no se puede modificar.'],
   FECHA_PASADA: [400, 'La fecha de salida debe ser futura.'],
   FECHA_CON_RESERVAS: [409, 'La salida ya tiene reservas: no se puede cambiar su fecha.'],
-  CUPOS_INVALIDOS: [400, 'Los cupos deben ser un número entero entre 1 y 500.'],
+  CUPOS_INVALIDOS: [400, MSG_CUPOS],
   CUPOS_MENOR_A_RESERVADOS: [409, 'Los cupos totales no pueden ser menores que los cupos ya reservados.'],
   GUIA_NO_VALIDO: [400, 'El guía elegido no es válido.'],
   ESTADO_NO_VALIDO: [400, 'El estado debe ser Activa o Inactiva.'],
 };
 
-// PUT /api/admin/salidas/:id   { fecha?, cupos_totales?, guia_id? (null = quitar), estado? ('Activa'|'Inactiva') }
+// PUT /api/admin/salidas/:id   { fecha?: "YYYY-MM-DD", cupos_totales?, guia_id?, estado? ('Activa'|'Inactiva') }
+// La hora sigue siendo la de la primera actividad del itinerario. El guía no se puede quitar.
 router.put('/salidas/:id', async (req, res, next) => {
   try {
     const id = idValido(req.params.id);
     if (!id) return fallo(res, 400, 'La salida no es válida.');
     const b = req.body || {};
 
+    const { data: actual, error: e0 } = await supabase
+      .from('salidas').select('id, paquete_id, cupos_totales').eq('id', id).maybeSingle();
+    if (e0) throw e0;
+    if (!actual) return fallo(res, 404, 'La salida no existe.');
+
     let fecha = null;
     if (b.fecha !== undefined) {
-      fecha = fechaLima(b.fecha);
-      if (!fecha) return fallo(res, 400, 'Indica la fecha y hora de salida.');
+      const paquete = await itinerarioDe(actual.paquete_id);
+      const hora = horaInicio(paquete?.itinerario);
+      if (!hora || !RE_HORA.test(hora)) {
+        return fallo(res, 409, 'El paquete no tiene itinerario (o su hora no es válida). Guarda el itinerario primero.');
+      }
+      fecha = fechaConHora(b.fecha, hora);
+      if (!fecha) return fallo(res, 400, 'Indica la fecha de salida.');
     }
 
-    if (b.cupos_totales !== undefined && !cuposValidos(b.cupos_totales)) {
-      return fallo(res, 400, 'Los cupos deben ser un número entero entre 1 y 500.');
+    // Una salida antigua con más cupos que el límite puede conservarlos; no se puede subir de 40.
+    if (b.cupos_totales !== undefined && b.cupos_totales !== actual.cupos_totales && !cuposValidos(b.cupos_totales)) {
+      return fallo(res, 400, MSG_CUPOS);
     }
 
-    const quitarGuia = b.guia_id === null || b.guia_id === '';
-    if (!quitarGuia && b.guia_id !== undefined && !esUuid(b.guia_id)) {
+    if (b.guia_id === null || b.guia_id === '') {
+      return fallo(res, 400, 'Elige el guía turístico de la salida.');
+    }
+    if (b.guia_id !== undefined && !esUuid(b.guia_id)) {
       return fallo(res, 400, 'El guía elegido no es válido.');
     }
 
@@ -314,8 +431,8 @@ router.put('/salidas/:id', async (req, res, next) => {
       p_id: id,
       p_fecha: fecha ? fecha.toISOString() : null,
       p_cupos_totales: b.cupos_totales ?? null,
-      p_guia_id: quitarGuia ? null : (b.guia_id ?? null),
-      p_quitar_guia: quitarGuia,
+      p_guia_id: b.guia_id ?? null,
+      p_quitar_guia: false,
       p_estado: b.estado ?? null,
     });
 

@@ -165,12 +165,12 @@ async function comprobarPropiedad(req, reservaId) {
 async function verificarIdentidad(persona, quien) {
   const tipo = txt(persona.tipo_documento).toUpperCase();
 
-  // El pasaporte solo se puede validar con su MRZ, que las reservas en línea no piden.
+  // El pasaporte se verifica con su MRZ (dígitos de control) en validarReserva:
+  // allí se toman número, nombres y nacimiento de la MRZ. No hay fuente oficial en línea.
   if (tipo === 'PASAPORTE') {
-    return {
-      estado: 400,
-      error: `El pasaporte ${quien} no se puede verificar en línea. Usa DNI o carné de extranjería, o reserva en nuestras oficinas.`,
-    };
+    return persona.verificado_mrz
+      ? { ok: true }
+      : { estado: 400, error: `Escribe la MRZ del pasaporte ${quien}.` };
   }
 
   const apellidos = txt(persona.apellidos)
@@ -800,6 +800,7 @@ router.post('/reservas', async (req, res, next) => {
         fecha_nacimiento: txt(c.fecha_nacimiento),
         correo: txt(c.correo),
         telefono: txt(c.telefono),
+        mrz: Array.isArray(c.mrz) ? c.mrz : undefined, // solo pasaporte
       };
     } else {
       const cliente = usuario.cliente;
@@ -860,6 +861,8 @@ router.post('/reservas', async (req, res, next) => {
 
     const v = validarReserva(datos, salida.fecha_inicio_viaje, {
       telefonoValido,
+      // Con los datos de la cuenta, el pasaporte ya se validó con la MRZ al registrarse.
+      titularSinMrz: !modoManual,
     });
 
     if (v.error) {

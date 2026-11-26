@@ -3,3 +3,12 @@
 .vp-campo select:focus{outline:0;border-color:var(--blue);box-shadow:0 0 0 3px rgba(20,86,214,.15)}
 .vp-campo--error select{border-color:var(--error)}
 .vp-campo input[type="date"]{font:500 16px "Figtree",sans-serif}
+
+/* Teléfono con código de país: selector + número (componentes/Telefono.jsx) */
+.vp-telefono{display:grid;grid-template-columns:minmax(0,1fr) minmax(0,1.1fr);gap:.5rem}
+.vp-telefono input{min-width:0}
+
+/* Zona MRZ del pasaporte: letra monoespaciada para contar los 44 caracteres */
+.vp-mrz input{font-family:ui-monospace,SFMono-Regular,Consolas,monospace;letter-spacing:.04em;text-transform:uppercase}
+.vp-fila--telefono{grid-template-columns:minmax(0,.7fr) minmax(0,2fr)}
+@media(max-width:640px){.vp-fila--telefono{grid-template-columns:1fr}}

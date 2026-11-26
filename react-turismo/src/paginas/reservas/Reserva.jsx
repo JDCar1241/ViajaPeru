@@ -1,7 +1,10 @@
 import { useEffect, useState } from 'react';
 import '../../estilos/reservas.css';
 import Campo from '../../componentes/Campo.jsx';
+import Telefono from '../../componentes/Telefono.jsx';
 import { esCorreo, esTelefono, noVacio } from '../../utils/validaciones.js';
+import { telefonoValido } from '../../utils/paises.js';
+import { analizarMrz, limpiarMrz } from '../../utils/mrz.js';
 import { pedir, crearReserva, ultima } from '../../servicios/api.js';
 import { useSesion } from '../../servicios/auth.js';
 import {
@@ -24,6 +27,11 @@ const ROL_CLIENTE = 'Cliente';
 
 const OPCION_DNI = [{ valor: 'DNI', texto: 'DNI' }];
 
+const MSG_TELEFONO = 'La longitud del teléfono no es la adecuada para el país elegido.';
+
+// Teléfono con código de país ("+51987654321"). Se acepta el formato antiguo de 9 dígitos.
+const telefonoOk = (t) => telefonoValido(t) || esTelefono(String(t || ''));
+
 const fecha = (v) =>
   new Date(v).toLocaleDateString('es-PE', {
     day: 'numeric',
@@ -41,9 +49,17 @@ const persona = () => ({
   apellido_materno: '',
   nombres: '',
   fecha_nacimiento: '',
+  telefono: '', // "+51987654321" (titular y acompañantes)
+  mrz1: '',     // solo pasaporte: las 2 líneas de la zona MRZ
+  mrz2: '',
 });
 
 // El Backend y la base guardan un solo campo "apellidos" (paterno + materno).
+// Con pasaporte se envía la MRZ: el Backend la valida y toma de ahí los datos.
+const paraEnviar = (p) => {
+  const { mrz1, mrz2, ...resto } = conApellidos(p);
+  return p.tipo_documento === 'PASAPORTE' ? { ...resto, mrz: [mrz1, mrz2] } : resto;
+};
 const conApellidos = (p) => ({
   ...p,
   apellidos: [p.apellido_paterno, p.apellido_materno]
@@ -91,8 +107,6 @@ const MSG_VACIO = {
   CE: 'No encontramos este carné de extranjería en la consulta. Ingresa los datos a mano.',
 };
 
-const telefonoClienteValido = (v) =>
-  esTelefono(v) || /^\+\d{9,15}$/.test(String(v || ''));
 
 function Fila({
   pre,
@@ -102,6 +116,7 @@ function Fila({
   fechaSalida,
   permitirConsulta = true,
   soloDni = false,
+  conTelefono = false,
 }) {
   const [busq, setBusq] = useState({
     estado: 'idle',
@@ -109,6 +124,35 @@ function Fila({
   });
 
   const esDni = p.tipo_documento === 'DNI';
+  const esPasaporte = p.tipo_documento === 'PASAPORTE';
+  const mrz = esPasaporte ? analizarMrz(p.mrz1, p.mrz2) : null;
+
+  // MRZ: si pegan las dos líneas juntas en la primera casilla, se reparten solas.
+  // Cuando la MRZ es válida, los datos del pasaporte se llenan solos.
+  const cambiarMrz = (linea) => (e) => {
+    let l1 = p.mrz1;
+    let l2 = p.mrz2;
+    const v = limpiarMrz(e.target.value);
+    if (linea === 1) {
+      l1 = v.slice(0, 44);
+      if (v.length > 44) l2 = v.slice(44, 88);
+    } else {
+      l2 = v.slice(0, 44);
+    }
+    const r = analizarMrz(l1, l2);
+    onCambio(
+      r.ok
+        ? {
+            mrz1: l1, mrz2: l2,
+            nro_documento: r.datos.numero,
+            apellido_paterno: r.datos.apellidos,
+            apellido_materno: '',
+            nombres: r.datos.nombres,
+            fecha_nacimiento: r.datos.fecha_nacimiento,
+          }
+        : { mrz1: l1, mrz2: l2 }
+    );
+  };
   const ruta = permitirConsulta
     ? CONSULTA[p.tipo_documento]
     : undefined;
@@ -192,6 +236,8 @@ function Fila({
             cambiarDoc({
               tipo_documento: e.target.value,
               nro_documento: '',
+              mrz1: '',
+              mrz2: '',
             })
           }
         />
@@ -202,6 +248,8 @@ function Fila({
           inputMode={esDni ? 'numeric' : 'text'}
           maxLength={esDni ? 8 : 12}
           value={p.nro_documento}
+          disabled={esPasaporte}
+          title={esPasaporte ? 'Se toma de la MRZ del pasaporte' : undefined}
           onChange={(e) =>
             cambiarDoc({
               nro_documento: limpiarDocumento(
@@ -229,6 +277,47 @@ function Fila({
         </p>
       )}
 
+      {esPasaporte && (
+        <div className="vp-mrz">
+          <p className="vp-sub">
+            Copia las dos líneas de letras, números y «&lt;» que están al pie de la página de datos del
+            pasaporte. Los datos se llenan solos desde ahí.
+          </p>
+          <Campo
+            etiqueta="Línea 1 de la MRZ"
+            autoComplete="off"
+            spellCheck={false}
+            autoCapitalize="characters"
+            maxLength={88}
+            value={p.mrz1}
+            onChange={cambiarMrz(1)}
+          />
+          <Campo
+            etiqueta="Línea 2 de la MRZ"
+            autoComplete="off"
+            spellCheck={false}
+            autoCapitalize="characters"
+            maxLength={44}
+            value={p.mrz2}
+            onChange={cambiarMrz(2)}
+            error={err[pre + 'mrz']}
+          />
+          {mrz?.incompleto && (p.mrz1 || p.mrz2) && (
+            <p className="vp-sub" role="status">
+              Cada línea debe tener 44 caracteres (llevas {p.mrz1.length} y {p.mrz2.length}).
+            </p>
+          )}
+          {mrz && !mrz.incompleto && !mrz.ok && (
+            <p className="vp-alerta" role="alert">{mrz.errores[0]}</p>
+          )}
+          {mrz?.ok && (
+            <p className="vp-ok" role="status">
+              MRZ válida: pasaporte {mrz.datos.numero} ({mrz.datos.nacionalidad}).
+            </p>
+          )}
+        </div>
+      )}
+
       {busq.msg && (
         <p
           className={
@@ -244,14 +333,16 @@ function Fila({
 
       <div className="vp-fila">
         <Campo
-          etiqueta="Apellido paterno"
+          etiqueta={esPasaporte ? 'Apellidos' : 'Apellido paterno'}
           value={p.apellido_paterno}
+          disabled={esPasaporte}
           onChange={(e) =>
             onCambio({ apellido_paterno: e.target.value })
           }
           error={err[pre + 'apellido_paterno']}
         />
 
+        {!esPasaporte && (
         <Campo
           etiqueta={esDni ? 'Apellido materno' : 'Apellido materno (si tiene)'}
           value={p.apellido_materno}
@@ -260,10 +351,12 @@ function Fila({
           }
           error={err[pre + 'apellido_materno']}
         />
+        )}
 
         <Campo
           etiqueta="Nombres"
           value={p.nombres}
+          disabled={esPasaporte}
           onChange={(e) =>
             onCambio({ nombres: e.target.value })
           }
@@ -271,17 +364,27 @@ function Fila({
         />
       </div>
 
-      <div className="vp-fila">
+      <div className={conTelefono ? 'vp-fila vp-fila--telefono' : 'vp-fila'}>
         <Campo
           etiqueta="Fecha de nacimiento"
           type="date"
           max={hoyISO()}
           value={p.fecha_nacimiento}
+          disabled={esPasaporte}
           onChange={(e) =>
             onCambio({ fecha_nacimiento: e.target.value })
           }
           error={err[pre + 'fecha_nacimiento']}
         />
+
+        {conTelefono && (
+          <Telefono
+            etiqueta="Teléfono"
+            value={p.telefono}
+            onChange={(t) => onCambio({ telefono: t })}
+            error={err[pre + 'telefono']}
+          />
+        )}
       </div>
 
       {edad !== null && edad >= 0 && edad < 18 && (
@@ -528,6 +631,17 @@ export default function Reserva({ paqueteId, salidaId }) {
     const vistos = new Set();
 
     const chk = (pre, p, esTitular) => {
+      // Pasaporte: primero la MRZ (de ella salen número, nombres y nacimiento)
+      if (p.tipo_documento === 'PASAPORTE') {
+        const r = analizarMrz(p.mrz1, p.mrz2);
+        if (!r.ok) {
+          n[pre + 'mrz'] = r.incompleto
+            ? 'Escribe las dos líneas de la MRZ (44 caracteres cada una).'
+            : r.errores[0];
+          return;
+        }
+      }
+
       const d = validarDocumento(
         p.tipo_documento,
         p.nro_documento
@@ -578,24 +692,31 @@ export default function Reserva({ paqueteId, salidaId }) {
       }
     };
 
-    chk('c.', titularFormulario, true);
+    if (esCliente && modoTitular === 'perfil') {
+      // Datos de la cuenta: solo se revisa la fecha de nacimiento (el documento ya se validó al registrarse)
+      const f = validarNacimiento(titularFormulario.fecha_nacimiento, fechaSalida);
+      if (f) n['c.fecha_nacimiento'] = f;
+      else if (edadAl(titularFormulario.fecha_nacimiento, fechaSalida) < 18) {
+        n['c.fecha_nacimiento'] = 'El titular que reserva debe ser mayor de edad.';
+      }
+      vistos.add(titularFormulario.tipo_documento + ':' + String(titularFormulario.nro_documento).toUpperCase());
+    } else {
+      chk('c.', titularFormulario, true);
+    }
 
     if (!esCorreo(titularFormulario.correo)) {
       n['c.correo'] = 'Escribe un correo válido.';
     }
 
-    const telefonoValido = esCliente
-      ? telefonoClienteValido(titularFormulario.telefono)
-      : esTelefono(titularFormulario.telefono);
-
-    if (!telefonoValido) {
-      n['c.telefono'] = esCliente
-        ? 'Escribe un teléfono válido.'
-        : 'El teléfono tiene 9 dígitos.';
+    if (!telefonoOk(titularFormulario.telefono)) {
+      n['c.telefono'] = titularFormulario.telefono ? MSG_TELEFONO : 'Escribe el teléfono.';
     }
 
     acomp.forEach((a, i) => {
       chk('a' + i + '.', a, false);
+      if (!telefonoValido(a.telefono)) {
+        n['a' + i + '.telefono'] = a.telefono ? MSG_TELEFONO : 'Escribe el teléfono del acompañante.';
+      }
     });
 
     return n;
@@ -625,11 +746,11 @@ export default function Reserva({ paqueteId, salidaId }) {
         const body = {
           salida_id: salida[C.id],
           modo_titular: modoTitular,
-          acompanantes: acomp.map(conApellidos),
+          acompanantes: acomp.map(paraEnviar),
         };
 
         if (modoTitular === 'manual') {
-          body.cliente = conApellidos(clienteManual);
+          body.cliente = paraEnviar(clienteManual);
         } else {
           // Enviar la fecha ingresada en el formulario.
           // Los demás datos siguen siendo obtenidos del perfil en backend.
@@ -645,8 +766,8 @@ export default function Reserva({ paqueteId, salidaId }) {
       } else {
         r = await crearReserva({
           salida_id: salida[C.id],
-          cliente: conApellidos(cliente),
-          acompanantes: acomp.map(conApellidos),
+          cliente: paraEnviar(cliente),
+          acompanantes: acomp.map(paraEnviar),
         });
       }
 
@@ -817,7 +938,8 @@ export default function Reserva({ paqueteId, salidaId }) {
                 <>
                   <p className="vp-sub">
                     Ingresa los datos de la persona que figurará como
-                    titular. Verificaremos su DNI y sus nombres.
+                    titular. Verificaremos su documento y sus nombres
+                    (con pasaporte, mediante su zona MRZ).
                   </p>
 
                   <Fila
@@ -827,7 +949,6 @@ export default function Reserva({ paqueteId, salidaId }) {
                     err={err}
                     fechaSalida={fechaSalida}
                     permitirConsulta={false}
-                    soloDni
                   />
 
                   <div className="vp-fila vp-fila--2">
@@ -839,11 +960,10 @@ export default function Reserva({ paqueteId, salidaId }) {
                       error={err['c.correo']}
                     />
 
-                    <Campo
+                    <Telefono
                       etiqueta="Teléfono del titular"
-                      type="tel"
                       value={clienteManual.telefono}
-                      onChange={setCampoManual('telefono')}
+                      onChange={(t) => cambiarManual({ telefono: t })}
                       error={err['c.telefono']}
                     />
                   </div>
@@ -869,13 +989,10 @@ export default function Reserva({ paqueteId, salidaId }) {
                   error={err['c.correo']}
                 />
 
-                <Campo
+                <Telefono
                   etiqueta="Teléfono"
-                  type="tel"
-                  inputMode="numeric"
-                  maxLength={9}
                   value={cliente.telefono}
-                  onChange={setCampoC('telefono')}
+                  onChange={(t) => cambiarC({ telefono: t })}
                   error={err['c.telefono']}
                 />
               </div>
@@ -905,7 +1022,7 @@ export default function Reserva({ paqueteId, salidaId }) {
                 err={err}
                 fechaSalida={fechaSalida}
                 permitirConsulta={!esCliente}
-                soloDni={esCliente}
+                conTelefono
               />
 
               <button

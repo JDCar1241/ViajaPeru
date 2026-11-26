@@ -84,6 +84,14 @@ export default function Detalle({ id }) {
   }
 
   const itinerario = Array.isArray(p.itinerario) ? p.itinerario : [];
+
+  // Itinerario de varios días: se agrupa por "Día N" (los datos antiguos sin día van al Día 1)
+  const porDia = itinerario.reduce((grupos, act) => {
+    const dia = Number(act.dia) >= 1 ? Number(act.dia) : 1;
+    (grupos[dia] ||= []).push(act);
+    return grupos;
+  }, {});
+  const dias = Object.keys(porDia).map(Number).sort((a, b) => a - b);
   const salidas = Array.isArray(p.salidas) ? p.salidas : [];
 
   const precio = Number(p.costo);
@@ -170,14 +178,19 @@ export default function Detalle({ id }) {
             </div>
 
             {itinerario.length ? (
-              <ol className="timeline">
-                {itinerario.map((i, k) => (
-                  <li key={k}>
-                    <strong>{i.hora}</strong>
-                    <span>{i.descripcion}</span>
-                  </li>
-                ))}
-              </ol>
+              dias.map((dia) => (
+                <div className="detalle-dia" key={dia}>
+                  <h3>Día {dia}</h3>
+                  <ol className="timeline">
+                    {porDia[dia].map((i, k) => (
+                      <li key={k}>
+                        <strong>{i.hora}</strong>
+                        <span>{i.descripcion}</span>
+                      </li>
+                    ))}
+                  </ol>
+                </div>
+              ))
             ) : (
               <p className="muted">
                 Este paquete aún no tiene itinerario publicado.

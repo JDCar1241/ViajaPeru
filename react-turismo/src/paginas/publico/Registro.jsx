@@ -2,27 +2,14 @@ import { useState } from 'react';
 import '../../estilos/reservas.css';
 import './registro.css';
 import Campo from '../../componentes/Campo.jsx';
+import Telefono from '../../componentes/Telefono.jsx';
+import { telefonoValido, separarTelefono, textoLargo, PAIS_POR_DEFECTO } from '../../utils/paises.js';
 import { esCorreo, noVacio, criteriosClave, claveValida, CLAVE_MAX } from '../../utils/validaciones.js';
 import { pedir, ultima } from '../../servicios/api.js';
 import { TIPOS, validarDocumento, limpiarDocumento } from '../../utils/documentos.js';
 import { analizarMrz, limpiarMrz } from '../../utils/mrz.js';
 
-// Dígitos del número nacional por código de país (sin el código).
-// Mantener igual que LARGOS en backend-turismo/src/utils/comunes.js
-const PAISES = [
-  { cod: '+51', nombre: 'Perú', largo: 9 },
-  { cod: '+1', nombre: 'Estados Unidos / Canadá', largo: 10 },
-  { cod: '+34', nombre: 'España', largo: 9 },
-  { cod: '+52', nombre: 'México', largo: 10 },
-  { cod: '+54', nombre: 'Argentina', largo: 10 },
-  { cod: '+55', nombre: 'Brasil', largo: 11 },
-  { cod: '+56', nombre: 'Chile', largo: 9 },
-  { cod: '+57', nombre: 'Colombia', largo: 10 },
-  { cod: '+58', nombre: 'Venezuela', largo: 10 },
-  { cod: '+591', nombre: 'Bolivia', largo: 8 },
-  { cod: '+593', nombre: 'Ecuador', largo: 9 },
-];
-const OPCIONES_PAIS = PAISES.map((p) => ({ valor: p.cod, texto: `${p.nombre} (${p.cod})` }));
+// Teléfono con código de país: lista en utils/paises.js (idéntica a la del Backend)
 
 // TIPOS viene de documentos.js; se normaliza por si algún elemento no trae las claves valor/texto
 const TIPOS_UI = TIPOS.map((t) => (typeof t === 'string'
@@ -34,7 +21,7 @@ const NOMBRE_DOC = { DNI: 'DNI', CE: 'carné de extranjería', PASAPORTE: 'pasap
 
 const inicial = {
   tipo: 'DNI', numero: '', nombres: '', paterno: '', materno: '', mrz1: '', mrz2: '',
-  correo: '', pais: '+51', telefono: '', clave: '', clave2: '',
+  correo: '', telefono: '', clave: '', clave2: '', // telefono completo: "+51987654321"
 };
 
 export default function Registro() {
@@ -44,7 +31,6 @@ export default function Registro() {
   const [fallo, setFallo] = useState('');
   const [enviando, setEnviando] = useState(false);
 
-  const pais = PAISES.find((p) => p.cod === f.pais) || PAISES[0];
   const esPasaporte = f.tipo === 'PASAPORTE';
   const esDni = f.tipo === 'DNI';
   const mrz = esPasaporte ? analizarMrz(f.mrz1, f.mrz2) : null; // se recalcula en cada tecla
@@ -73,9 +59,12 @@ export default function Registro() {
       if (esDni && !noVacio(f.materno)) n.materno = 'Escribe tu apellido materno.';
     }
     if (!esCorreo(f.correo)) n.correo = 'Escribe un correo válido.';
-    if (!new RegExp(`^\\d{${pais.largo}}$`).test(f.telefono)) {
+    if (!telefonoValido(f.telefono)) {
       // HU: el mensaje debe indicar que la longitud del teléfono es inadecuada.
-      n.telefono = `La longitud del teléfono no es la adecuada: para ${pais.nombre} debe tener ${pais.largo} dígitos.`;
+      const pais = separarTelefono(f.telefono)?.pais || PAIS_POR_DEFECTO;
+      n.telefono = f.telefono
+        ? `La longitud del teléfono no es la adecuada para el país elegido (${textoLargo(pais)}).`
+        : 'Escribe tu teléfono.';
     }
     if (!claveValida(f.clave)) n.clave = 'La contraseña debe tener mínimo 8 caracteres, al menos una letra mayúscula y un número.';
     if (f.clave !== f.clave2) n.clave2 = 'Las contraseñas no coinciden.';
@@ -100,7 +89,7 @@ export default function Registro() {
           };
       await pedir('/clientes/registro', {
         method: 'POST',
-        body: JSON.stringify({ ...documento, correo, telefono: pais.cod + f.telefono, clave: f.clave }),
+        body: JSON.stringify({ ...documento, correo, telefono: f.telefono, clave: f.clave }),
       });
       ultima.correoRegistro = correo;
       window.location.hash = '#/verifica-correo';
@@ -203,11 +192,9 @@ export default function Registro() {
               <div className="full">
                 <Campo etiqueta="Correo electrónico" type="email" autoComplete="email" value={f.correo} onChange={set('correo')} error={err.correo} />
               </div>
-              <Campo etiqueta="País" opciones={OPCIONES_PAIS} value={f.pais}
-                onChange={(e) => setF({ ...f, pais: e.target.value, telefono: '' })} />
-              <Campo etiqueta="Teléfono" type="tel" autoComplete="tel-national" inputMode="numeric" maxLength={pais.largo}
-                value={f.telefono} onChange={(e) => setF({ ...f, telefono: e.target.value.replace(/\D/g, '').slice(0, pais.largo) })}
-                error={err.telefono} />
+              <div className="full">
+                <Telefono value={f.telefono} onChange={(t) => setF({ ...f, telefono: t })} error={err.telefono} />
+              </div>
             </div>
           </fieldset>
 

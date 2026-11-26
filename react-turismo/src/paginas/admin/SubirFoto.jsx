@@ -24,7 +24,7 @@ async function reducir(archivo) {
     lienzo.toBlob((b) => (b ? ok(b) : mal(new Error('No pudimos procesar la imagen.'))), 'image/jpeg', 0.85));
 }
 
-export default function SubirFoto({ url, error, onChange }) {
+export default function SubirFoto({ url, error, onChange, obligatoria = false }) {
   const id = useId();
   const entrada = useRef(null);
   const [subiendo, setSubiendo] = useState(false);
@@ -60,7 +60,7 @@ export default function SubirFoto({ url, error, onChange }) {
 
   return (
     <div className="ad-campo">
-      <label htmlFor={id}>Foto del paquete</label>
+      <label htmlFor={id}>Foto del paquete{obligatoria ? ' (obligatoria)' : ''}</label>
 
       <div className="ad-foto">
         {url

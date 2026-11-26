@@ -1,3 +1,5 @@
+import { telefonoValido } from './paises.js';
+
 // Reglas y utilidades compartidas por todo el Backend.
 // Antes estaban copiadas en auth, clientes, reservas, cobros, comprobantes y consultas.
 
@@ -33,14 +35,10 @@ export const esFechaISO = (v) => {
 };
 
 // ---- Teléfonos ----
-// Reservas presenciales: 9 dígitos peruanos, sin código de país.
+// Teléfono antiguo de reservas presenciales: 9 dígitos peruanos sin código de país.
+// Se sigue aceptando para no romper datos ya guardados.
 export const esTelefonoPeru = (v) => typeof v === 'string' && /^\d{9}$/.test(v);
 
-// Registro de cuentas: con código de país. Mantener igual que PAISES en react-turismo/src/paginas/publico/Registro.jsx
-const LARGOS = { '+51': 9, '+1': 10, '+34': 9, '+52': 10, '+54': 10, '+55': 11, '+56': 9, '+57': 10, '+58': 10, '+591': 8, '+593': 9 };
-const CODIGOS = Object.keys(LARGOS).sort((a, b) => b.length - a.length);
-export function telefonoInternacionalValido(t) {
-  if (typeof t !== 'string' || !/^\+\d{9,15}$/.test(t)) return false;
-  const cod = CODIGOS.find((c) => t.startsWith(c));
-  return !!cod && t.length - cod.length === LARGOS[cod];
-}
+// Con código de país ("+51987654321"). La lista de países está en utils/paises.js
+// (idéntica a react-turismo/src/utils/paises.js).
+export const telefonoInternacionalValido = (t) => telefonoValido(t);

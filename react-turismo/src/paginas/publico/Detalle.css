@@ -383,3 +383,14 @@
   color: var(--muted);
   font-size: 11px;
 }
+
+/* Itinerario agrupado por día */
+.detalle-dia + .detalle-dia { margin-top: 18px; }
+.detalle-dia h3 {
+  margin: 0 0 8px;
+  color: var(--blue);
+  font-size: 14px;
+  font-weight: 800;
+  letter-spacing: .04em;
+  text-transform: uppercase;
+}
