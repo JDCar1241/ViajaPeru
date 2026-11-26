@@ -29,6 +29,7 @@ import Cancelaciones from './paginas/legal/Cancelaciones.jsx';
 import Contacto from './paginas/legal/Contacto.jsx';
 import LibroReclamaciones from './paginas/legal/LibroReclamaciones.jsx';
 import PiePagina from './componentes/PiePagina.jsx';
+import AtrapaErrores from './componentes/AtrapaErrores.jsx';
 
 // Vuelta desde el enlace de confirmación del correo (Supabase pone el token o el error en el hash)
 const esRetornoDeConfirmacion = (hash) =>
@@ -135,7 +136,8 @@ export default function App() {
         </nav>
       </header>
 
-      {vista}
+      {/* Si la pantalla falla (p. ej. por una extensión del navegador), se muestra un aviso y no una página en blanco */}
+      <AtrapaErrores key={hash}>{vista}</AtrapaErrores>
 
       <PiePagina />
     </>
