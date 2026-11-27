@@ -63,5 +63,4 @@
 .sitio .vp-enlace{color:inherit}
 .sitio .vp-menu{display:flex;gap:1rem;align-items:center}.vp-plazo{margin:0;padding:10px 16px;border-radius:var(--radio-s);background:var(--warn-bg);color:var(--warn);font-size:.95rem}
 .vp-plazo--poco{background:var(--error-bg);color:var(--error)}
-.vp-personas{display:flex;flex-wrap:wrap;gap:12px;align-items:flex-end}
-.vp-personas .vp-campo{min-width:10rem}
+.vp-sin-cupos{display:flex;flex-wrap:wrap;gap:12px;align-items:center;justify-content:space-between;margin-top:8px}
