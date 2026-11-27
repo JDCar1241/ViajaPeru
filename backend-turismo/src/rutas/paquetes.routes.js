@@ -80,6 +80,7 @@ router.get('/', async (req, res, next) => {
       nombre: p.nombre,
       foto_url: p.foto_url,
       costo: Number(p.costo),
+      moneda: p.moneda || 'PEN',
       cupos_disponibles: p.cupos_disponibles,
       proxima_salida: p.proxima_salida,
     }));

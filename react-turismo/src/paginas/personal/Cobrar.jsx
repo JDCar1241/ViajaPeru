@@ -3,7 +3,7 @@ import './cobros.css';
 import './comprobante.css';
 import { pedir } from '../../servicios/api.js';
 import { useSesion } from '../../servicios/auth.js';
-import { soles, cent } from '../../utils/moneda.js';
+import { soles, cent, esUsd, totalReservaDetalle } from '../../utils/moneda.js';
 import { esCorreo } from '../../utils/validaciones.js';
 import { pedirTokenTarjeta } from '../../servicios/culqi-front.js';
 
@@ -100,14 +100,20 @@ export default function Cobrar({ id }) {
   const vuelto = lineas.reduce((s, l) => s + vueltoDe(l), 0);
   const lineaTarjeta = lineas.find((l) => l.metodo === 'Tarjeta');
   const tarjetasMultiples = lineas.filter((l) => l.metodo === 'Tarjeta').length > 1;
-  const usdCent = (soloCent) => Math.round(soloCent / tc); // céntimos de sol -> céntimos de dólar
+  // Paquete en dólares: su tipo de cambio fijado al reservar; si se paga todo con tarjeta en USD,
+  // exactamente su precio en dólares (igual que el Backend, utils/moneda.js)
+  const reservaUsd = esUsd(r);
+  const tcReserva = reservaUsd ? Number(r.tipo_cambio) : tc;
+  const usdCent = (soloCent) => (reservaUsd && soloCent === total
+    ? Math.round(Number(r.total_moneda) * 100)
+    : Math.round(soloCent / tcReserva)); // céntimos de sol -> céntimos de dólar
 
   const errLinea = (l) => {
     if (cent(l.monto) <= 0) return 'Escribe un monto mayor a 0.';
     if (l.metodo === 'Efectivo' && l.recibido !== '' && cent(l.recibido) < cent(l.monto)) return 'El efectivo recibido no cubre el monto.';
     if (l.metodo === 'Tarjeta' && tarjetasMultiples) return 'Solo se admite un pago con tarjeta por operación.';
     if (l.metodo === 'Tarjeta' && l.moneda === 'USD') {
-      if (!tc) return 'No hay tipo de cambio configurado: cobra en soles.';
+      if (!tcReserva) return 'No hay tipo de cambio configurado: cobra en soles.';
       if (usdCent(cent(l.monto)) <= 0) return 'El monto en dólares es demasiado pequeño.';
     }
     return '';
@@ -130,7 +136,9 @@ export default function Cobrar({ id }) {
       if (lineaTarjeta) {
         setEsperandoTarjeta(true);
         let montoTarjeta = cent(lineaTarjeta.monto);
-        if (lineaTarjeta.moneda === 'USD') {
+        if (lineaTarjeta.moneda === 'USD' && reservaUsd) {
+          montoTarjeta = usdCent(montoTarjeta); // tipo de cambio fijo de la reserva
+        } else if (lineaTarjeta.moneda === 'USD') {
           // Se vuelve a leer el tipo de cambio justo antes de cobrar, por si cambió
           const t = await pedir('/reservas/tipo-cambio');
           setTc(Number(t.usd));
@@ -208,12 +216,12 @@ export default function Cobrar({ id }) {
                       <label className="fld">Moneda de la tarjeta
                         <select value={l.moneda} onChange={setL(i, 'moneda')}>
                           <option value="PEN">Soles (S/)</option>
-                          <option value="USD" disabled={!tc}>Dólares (US$)</option>
+                          <option value="USD" disabled={!tcReserva}>Dólares (US$)</option>
                         </select>
                       </label>
                       <p className="muted">
-                        {l.moneda === 'USD' && tc
-                          ? `Se cobrarán ${dolares(usdCent(cent(l.monto)))} (tipo de cambio: S/ ${tc.toFixed(2)} por US$ 1). Se pedirá la tarjeta al registrar el pago.`
+                        {l.moneda === 'USD' && tcReserva
+                          ? `Se cobrarán ${dolares(usdCent(cent(l.monto)))} (tipo de cambio: S/ ${tcReserva.toFixed(2)} por US$ 1). Se pedirá la tarjeta al registrar el pago.`
                           : 'Se pedirá la tarjeta al registrar el pago.'}
                       </p>
                     </>
@@ -281,7 +289,7 @@ export default function Cobrar({ id }) {
 
       <div className="cb-resumen" aria-live="polite">
         <dl>
-          <div><dt>Total</dt><dd>{soles(total / 100)}</dd></div>
+          <div><dt>Total</dt><dd>{soles(total / 100)}{reservaUsd && <small> · paquete en dólares: {totalReservaDetalle(r)}</small>}</dd></div>
           <div><dt>Cobrado</dt><dd>{soles(pagado / 100)}</dd></div>
           <div><dt>{falta < 0 ? 'Te pasas por' : 'Falta'}</dt><dd className={falta === 0 ? 'cb-ok' : falta < 0 ? 'cb-mal' : ''}>{falta === 0 ? 'Completo' : soles(Math.abs(falta) / 100)}</dd></div>
           <div><dt>Vuelto</dt><dd>{soles(vuelto / 100)}</dd></div>

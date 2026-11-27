@@ -2,7 +2,7 @@ import { useEffect, useState } from 'react';
 import './cobros.css';
 import { pedir } from '../../servicios/api.js';
 import { useSesion } from '../../servicios/auth.js';
-import { soles } from '../../utils/moneda.js';
+import { totalReserva } from '../../utils/moneda.js';
 
 const ROLES = ['Recepcionista', 'Administrador'];
 const fecha = (v) => new Date(v).toLocaleDateString('es-PE', { day: 'numeric', month: 'short', year: 'numeric', timeZone: 'America/Lima' });
@@ -56,7 +56,7 @@ export default function Cobros() {
                   <td>{f.paquete.nombre}</td>
                   <td>{fecha(f.fecha_inicio_viaje)}</td>
                   <td>{f.num_personas}</td>
-                  <td><strong>{soles(f.total)}</strong></td>
+                  <td><strong>{totalReserva(f)}</strong></td>
                   <td>{vista === 'Pendiente'
                     ? <a className="btn sm" href={'#/cobrar/' + f.id}>Cobrar</a>
                     : <a className="btn sm" href={'#/comprobante/' + f.id}>Comprobante</a>}</td>

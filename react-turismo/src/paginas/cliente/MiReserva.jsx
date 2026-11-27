@@ -8,6 +8,7 @@ import './MiReserva.css';
 import Confirmar from '../../componentes/Confirmar.jsx';
 import Icono from '../../componentes/Icono.jsx';
 import CuentaRegresiva from '../../componentes/CuentaRegresiva.jsx';
+import { esUsd, totalReserva } from '../../utils/moneda.js';
 
 function moneda(valor, tipo = 'PEN') {
   return Number(valor || 0).toLocaleString('es-PE', {
@@ -113,6 +114,8 @@ export default function MiReserva() {
       }
 
       setReserva(datos);
+      // Paquete en dólares: se propone pagar en dólares (se puede cambiar a soles)
+      if (esUsd(datos)) setMonedaPago('USD');
 
       setCorreo(
         datos.cliente?.correo ||
@@ -194,9 +197,13 @@ export default function MiReserva() {
   const restoSoles = totalSoles - saldoAplicado; // lo que se paga con tarjeta
   const soloSaldo = usarSaldo && restoSoles === 0;
 
-  const restoDolares = tipoCambio
-    ? Math.round(restoSoles / tipoCambio)
-    : 0;
+  // Reserva en USD: si se paga todo, exactamente su precio en dólares (sin redondeos de conversión)
+  const reservaUsd = esUsd(reserva);
+  const restoDolares = reservaUsd && restoSoles === totalSoles
+    ? Math.round(Number(reserva.total_moneda) * 100)
+    : tipoCambio
+      ? Math.round(restoSoles / tipoCambio)
+      : 0;
 
   const montoMostrado = monedaPago === 'USD'
     ? dolares(restoDolares)
@@ -309,7 +316,9 @@ export default function MiReserva() {
         }
 
         setTipoCambio(tcActual);
-        montoFinal = Math.round(restoSoles / tcActual);
+        montoFinal = reservaUsd && restoSoles === totalSoles
+          ? Math.round(Number(reserva.total_moneda) * 100) // mismo importe que cobrará el Backend
+          : Math.round(restoSoles / tcActual);
 
         if (montoFinal <= 0) {
           throw new Error('El importe convertido a dólares no es válido.');
@@ -573,7 +582,7 @@ export default function MiReserva() {
 
                 <div className="mr-total-linea">
                   <span>Importe total</span>
-                  <strong>{moneda(reserva.total)}</strong>
+                  <strong>{totalReserva(reserva)}</strong>
                 </div>
 
                 <div className="mr-total-linea">
@@ -583,8 +592,12 @@ export default function MiReserva() {
 
                 <div className="mr-total-destacado">
                   <span>Total de la reserva</span>
-                  <strong>{moneda(reserva.total)}</strong>
-                  <small>Importe base en soles peruanos</small>
+                  <strong>{totalReserva(reserva)}</strong>
+                  <small>
+                    {reservaUsd
+                      ? `Precio en dólares. Equivale a ${moneda(reserva.total)} (tipo de cambio fijado al reservar: S/ ${Number(reserva.tipo_cambio).toFixed(2)}).`
+                      : 'Importe base en soles peruanos'}
+                  </small>
                 </div>
 
                 {pendiente ? (

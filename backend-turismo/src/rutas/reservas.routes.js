@@ -42,11 +42,15 @@ router.post('/', requiereSesion(ROLES_CAJA), async (req, res, next) => {
       const m = error.message || '';
       if (m.includes('CUPOS_INSUFICIENTES')) return fallo(res, 409, 'La cantidad de pasajeros excede la capacidad disponible del paquete.');
       if (m.includes('SALIDA_NO_DISPONIBLE')) return fallo(res, 409, 'La salida no está disponible.');
+      if (m.includes('TIPO_CAMBIO_NO_CONFIGURADO')) return fallo(res, 503, 'Configura el tipo de cambio para reservar paquetes en dólares.');
       if (m.includes('CLIENTE_MENOR')) return fallo(res, 400, 'El cliente que reserva debe ser mayor de edad.');
       if (m.includes('DATOS_INVALIDOS') || error.code === '23514') return fallo(res, 400, 'Los datos de la reserva no son válidos.');
       throw error;
     }
-    res.status(201).json(data);
+    // Moneda y precio fijados por la base (17-moneda.sql)
+    const { data: fila } = await supabase
+      .from('reservas').select('total, moneda, total_moneda, tipo_cambio').eq('id', data.id).maybeSingle();
+    res.status(201).json({ ...data, ...(fila || {}) });
   } catch (e) { next(e); }
 });
 

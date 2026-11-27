@@ -2,7 +2,7 @@ import { useEffect, useState } from 'react';
 import '../../estilos/reservas.css';
 import { pedir, ultima } from '../../servicios/api.js';
 import { useSesion } from '../../servicios/auth.js';
-import { soles } from '../../utils/moneda.js';
+import { totalReservaDetalle } from '../../utils/moneda.js';
 import CuentaRegresiva from '../../componentes/CuentaRegresiva.jsx';
 
 // La salida llega como fecha y hora ISO (en UTC). Cortar los 10 primeros caracteres
@@ -165,7 +165,7 @@ export default function Confirmacion({ id }) {
             {r.total != null && (
               <div>
                 <dt>Total a pagar</dt>
-                <dd>{soles(r.total)}</dd>
+                <dd>{totalReservaDetalle(r)}</dd>
               </div>
             )}
           </dl>

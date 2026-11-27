@@ -4,6 +4,7 @@ import { pedir } from '../../servicios/api.js';
 import './MisReservas.css';
 import Icono from '../../componentes/Icono.jsx';
 import { codigoReserva } from '../../utils/utils.js';
+import { totalReserva } from '../../utils/moneda.js';
 
 const moneda = (valor) =>
   new Intl.NumberFormat('es-PE', {
@@ -290,7 +291,7 @@ export default function MisReservas() {
                       <div className="mc-dato">
                         <span>MONTO TOTAL</span>
                         <strong className="mc-precio">
-                          {moneda(r.total)}
+                          {totalReserva(r)}
                         </strong>
                       </div>
 

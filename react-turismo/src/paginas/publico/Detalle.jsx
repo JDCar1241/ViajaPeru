@@ -95,15 +95,19 @@ export default function Detalle({ id }) {
   const salidas = Array.isArray(p.salidas) ? p.salidas : [];
 
   const precio = Number(p.costo);
+  const enDolares = p.moneda === 'USD';
 
+  // Equivalente referencial en la otra moneda (el precio real es el del paquete)
   const precioDolares =
     tipoCambio && Number.isFinite(precio) && precio >= 0
-      ? new Intl.NumberFormat('en-US', {
-          style: 'currency',
-          currency: 'USD',
-          minimumFractionDigits: 2,
-          maximumFractionDigits: 2,
-        }).format(precio / tipoCambio)
+      ? enDolares
+        ? `≈ ${moneda(precio * tipoCambio)}`
+        : new Intl.NumberFormat('en-US', {
+            style: 'currency',
+            currency: 'USD',
+            minimumFractionDigits: 2,
+            maximumFractionDigits: 2,
+          }).format(precio / tipoCambio)
       : null;
 
   const elegir = (s) => {
@@ -149,7 +153,7 @@ export default function Detalle({ id }) {
         <div className="detalle-precio">
           <small>Precio por persona</small>
 
-          <strong>{moneda(p.costo)}</strong>
+          <strong>{moneda(p.costo, p.moneda)}</strong>
 
           {precioDolares ? (
             <span className="detalle-precio-usd">
@@ -157,7 +161,7 @@ export default function Detalle({ id }) {
             </span>
           ) : (
             <span className="detalle-tipo-cambio">
-              Precio en dólares no disponible
+              {enDolares ? 'Precio en dólares' : 'Precio en dólares no disponible'}
             </span>
           )}
 

@@ -3,6 +3,7 @@ import '../../estilos/reservas.css';
 import Campo from '../../componentes/Campo.jsx';
 import Telefono from '../../componentes/Telefono.jsx';
 import CuentaRegresiva from '../../componentes/CuentaRegresiva.jsx';
+import { importe } from '../../utils/moneda.js';
 import { esCorreo, esTelefono, noVacio } from '../../utils/validaciones.js';
 import { telefonoValido } from '../../utils/paises.js';
 import { analizarMrz, limpiarMrz } from '../../utils/mrz.js';
@@ -917,6 +918,11 @@ export default function Reserva({ paqueteId, salidaId }) {
                 : `${cupos} ${cupos === 1 ? 'cupo disponible' : 'cupos disponibles'}.`}
             </p>
           </div>
+
+          <p>
+            Precio por persona: <strong>{importe(paquete.costo, paquete.moneda)}</strong>
+            {' · '}Total: <strong>{importe(Number(paquete.costo) * personasElegidas, paquete.moneda)}</strong>
+          </p>
 
           {fallo && <p className="vp-alerta" role="alert">{fallo}</p>}
 

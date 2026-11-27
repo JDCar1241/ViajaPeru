@@ -13,7 +13,8 @@ import Icono from '../../componentes/Icono.jsx';
 // HU-009 · Crear / editar un paquete y gestionar sus salidas (fechas, cupos y guía).
 // Reglas: foto e itinerario obligatorios; cada actividad tiene día y hora (24 h);
 // la salida toma la hora de la primera actividad del Día 1; el guía es obligatorio.
-const VACIO = { nombre: '', destino: '', costo: '', foto_url: '', aclaraciones: '', itinerario: [] };
+const VACIO = { nombre: '', destino: '', costo: '', moneda: 'PEN', foto_url: '', aclaraciones: '', itinerario: [] };
+const MONEDAS = [{ valor: 'PEN', texto: 'Soles (S/)' }, { valor: 'USD', texto: 'Dólares (US$)' }];
 
 // Datos antiguos: sin día (-> Día 1) y con horas escritas a mano (-> "HH:mm")
 const normalizarItinerario = (it) =>
@@ -57,6 +58,7 @@ export default function AdminPaquete({ id }) {
           nombre: p.nombre || '',
           destino: p.destino || '',
           costo: String(p.costo ?? ''),
+          moneda: p.moneda || 'PEN',
           foto_url: p.foto_url || '',
           aclaraciones: p.aclaraciones || '',
           itinerario: normalizarItinerario(p.itinerario),
@@ -187,8 +189,19 @@ export default function AdminPaquete({ id }) {
         <div className="ad-grid">
           <Texto etiqueta="Nombre" valor={form.nombre} onChange={cambiar('nombre')} error={errores.nombre} maxLength={120} required />
           <Texto etiqueta="Destino" valor={form.destino} onChange={cambiar('destino')} error={errores.destino} maxLength={80} required />
-          <Texto etiqueta="Precio por persona (S/)" valor={form.costo} onChange={cambiar('costo')} error={errores.costo}
+          <Texto etiqueta={`Precio por persona (${form.moneda === 'USD' ? 'US$' : 'S/'})`} valor={form.costo}
+                 onChange={cambiar('costo')} error={errores.costo}
                  type="number" min="0.01" step="0.01" inputMode="decimal" required />
+          <label className="ad-campo">Moneda del precio
+            <select value={form.moneda} onChange={cambiar('moneda')}>
+              {MONEDAS.map((m) => <option key={m.valor} value={m.valor}>{m.texto}</option>)}
+            </select>
+            <span className="muted ad-nota">
+              Las reservas ya hechas conservan su moneda y su precio.
+              {form.moneda === 'USD' && ' En dólares se usa el tipo de cambio del día de cada reserva.'}
+            </span>
+            {errores.moneda && <span className="vp-error">{errores.moneda}</span>}
+          </label>
         </div>
 
         <SubirFoto url={form.foto_url} error={errores.foto_url} obligatoria

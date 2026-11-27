@@ -80,6 +80,10 @@ function validarPaquete(b = {}) {
     errores.costo = 'El precio debe ser mayor a 0, con hasta 2 decimales.';
   }
 
+  // Moneda del precio por persona (17-moneda.sql). Las reservas ya hechas conservan la suya.
+  const moneda = b.moneda === undefined ? 'PEN' : String(b.moneda).toUpperCase();
+  if (!['PEN', 'USD'].includes(moneda)) errores.moneda = 'Elige soles o dólares.';
+
   // La foto es obligatoria: el catálogo muestra una por paquete.
   const foto = txt(b.foto_url);
   if (!foto) {
@@ -123,7 +127,7 @@ function validarPaquete(b = {}) {
   if (Object.keys(errores).length) return { errores };
   return {
     valores: {
-      nombre, destino, costo,
+      nombre, destino, costo, moneda,
       foto_url: foto || null,
       aclaraciones: aclaraciones || null,
       itinerario,

@@ -3,6 +3,7 @@ import './admin.css';
 import { pedir } from '../../servicios/api.js';
 import { useSesion } from '../../servicios/auth.js';
 import { fechaHoraLima, soles } from './fechas.js';
+import { dolaresFmt } from '../../utils/moneda.js';
 
 // HU-009 · Listado del catálogo para el Administrador.
 export default function AdminPaquetes() {
@@ -88,7 +89,7 @@ export default function AdminPaquetes() {
                     : 'Sin salidas a la venta'}
                 </span>
               </div>
-              <span className="ad-precio">{soles(p.costo)}</span>
+              <span className="ad-precio">{p.moneda === 'USD' ? dolaresFmt(p.costo) : soles(p.costo)}</span>
             </a>
           ))}
         </div>

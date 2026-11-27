@@ -1,7 +1,7 @@
-import { soles } from './moneda.js';
+import { importe } from './moneda.js';
 
-// Formato de soles: una sola implementación (moneda.js). Mantiene el nombre "moneda" para no tocar los componentes.
-export const moneda = soles;
+// Formato de importes: una sola implementación (moneda.js). moneda(n) = soles; moneda(n, 'USD') = dólares.
+export const moneda = (n, codigo = 'PEN') => importe(n, codigo);
 
 // El Back envía fechas ISO 8601. Se muestran siempre en hora de Lima: la salida ocurre en Perú.
 export const fecha = iso =>

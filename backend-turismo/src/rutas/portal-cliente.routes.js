@@ -14,6 +14,7 @@ import {
 } from '../utils/comunes.js';
 import { generarPdf } from '../servicios/comprobante.pdf.js';
 import { liberarVencidas, vencida, MINUTOS_APARTADO, MINUTOS_PAGO } from '../servicios/vencimientos.js';
+import { esUsd, tipoCambioDe, aCentimosUsd } from '../utils/moneda.js';
 import { emitirYEnviarComprobante } from '../servicios/comprobante-digital.js';
 import {
   crearCargo,
@@ -312,7 +313,8 @@ router.get('/reservas/:id/tipo-cambio', async (req, res, next) => {
       return fallo(res, 409, MSG_PLAZO_PAGO);
     }
 
-    const tc = await tipoCambioUsd();
+    // Reserva en USD: su propio tipo de cambio (fijado al reservar). En PEN: el vigente.
+    const tc = tipoCambioDe(reserva, esUsd(reserva) ? null : await tipoCambioUsd());
 
     if (!tc) {
       return fallo(res, 503, 'El tipo de cambio no está configurado.');
@@ -324,10 +326,11 @@ router.get('/reservas/:id/tipo-cambio', async (req, res, next) => {
       return fallo(res, 400, 'El importe de la reserva no es válido.');
     }
 
-    const centimosUsd = Math.round(Math.round(total * 100) / tc);
+    const centimosUsd = aCentimosUsd(Math.round(total * 100), reserva, tc);
 
     res.json({
       moneda_base: 'PEN',
+      moneda_reserva: reserva.moneda || 'PEN',
       total_soles: total,
       tipo_cambio: tc,
       total_dolares: centimosUsd / 100,
@@ -475,13 +478,14 @@ router.post('/reservas/:id/pagar', limitarPago, async (req, res, next) => {
       centimos = restoCent;
 
       if (moneda === 'USD') {
-        tc = await tipoCambioUsd();
+        // Reserva en USD: su tipo de cambio fijo; si se paga todo, exactamente su precio en dólares
+        tc = tipoCambioDe(reserva, esUsd(reserva) ? null : await tipoCambioUsd());
 
         if (!tc) {
           return fallo(res, 503, 'El tipo de cambio no está configurado.');
         }
 
-        centimos = Math.round(centimos / tc);
+        centimos = aCentimosUsd(restoCent, reserva, tc);
 
         if (centimos <= 0) {
           return fallo(res, 400, 'El importe en dólares es demasiado pequeño.');
@@ -867,13 +871,21 @@ router.post('/reservas/apartar', async (req, res, next) => {
         return fallo(res, 409, 'La cantidad de pasajeros excede la capacidad disponible del paquete.');
       }
       if (m.includes('SALIDA_NO_DISPONIBLE')) return fallo(res, 409, 'La salida no está disponible.');
+      if (m.includes('TIPO_CAMBIO_NO_CONFIGURADO')) {
+        console.error('Falta configuracion.tipo_cambio_usd para reservar un paquete en dólares.');
+        return fallo(res, 503, 'No podemos reservar este paquete en dólares en este momento. Inténtalo más tarde.');
+      }
       if (m.includes('DATOS_INVALIDOS') || error.code === '23514') {
         return fallo(res, 400, 'Los datos de la reserva no son válidos.');
       }
       throw error;
     }
 
-    res.status(201).json(data);
+    // Moneda y precio fijados por la base al apartar (17-moneda.sql)
+    const { data: fila } = await supabase
+      .from('reservas').select('total, moneda, total_moneda, tipo_cambio').eq('id', data.id).maybeSingle();
+
+    res.status(201).json({ ...data, ...(fila || {}) });
   } catch (e) {
     next(e);
   }
@@ -957,7 +969,11 @@ router.post('/reservas/:id/completar', async (req, res, next) => {
       throw error;
     }
 
-    res.status(201).json(data);
+    // Moneda y precio de la reserva (17-moneda.sql) para la pantalla de confirmación
+    const { data: fila } = await supabase
+      .from('reservas').select('total, moneda, total_moneda, tipo_cambio').eq('id', id).maybeSingle();
+
+    res.status(201).json({ ...data, ...(fila || {}) });
   } catch (e) {
     next(e);
   }

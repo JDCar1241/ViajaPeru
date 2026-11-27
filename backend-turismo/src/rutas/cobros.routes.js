@@ -1,5 +1,6 @@
 import { Router } from 'express';
 import { liberarVencidas, vencida } from '../servicios/vencimientos.js';
+import { esUsd, tipoCambioDe, aCentimosUsd } from '../utils/moneda.js';
 import { supabase } from '../config/supabase.js';
 import { requiereSesion, fallo } from '../middlewares/auth.middleware.js';
 import { crearCargo, reembolsar, ErrorPasarela } from '../config/culqi.js';
@@ -149,9 +150,10 @@ router.post('/:id/pagos', requiereSesion(ROLES), async (req, res, next) => {
 
       centimos = Math.round(tarjeta.pago.monto * 100); // céntimos de sol
       if (tarjeta.moneda === 'USD') {
-        tc = await tipoCambioUsd();
+        // Reserva en USD: su tipo de cambio fijo (y, si se paga todo, su precio exacto en dólares)
+        tc = tipoCambioDe(reserva, esUsd(reserva) ? null : await tipoCambioUsd());
         if (!tc) return fallo(res, 503, 'El tipo de cambio no está configurado.');
-        centimos = Math.round(centimos / tc); // céntimos de sol / (soles por dólar) = céntimos de dólar
+        centimos = aCentimosUsd(centimos, reserva, tc); // céntimos de sol -> céntimos de dólar
         if (centimos <= 0) return fallo(res, 400, 'El monto en dólares es demasiado pequeño.');
       }
 

@@ -18,7 +18,7 @@ function Tarjeta({ p }) {
         <h3>{p.nombre}</h3>
         <span className="pill">{cupos(p.cupos_disponibles)}</span>
         <div className="pie">
-          <span className="precio">{moneda(p.costo)}</span>
+          <span className="precio">{moneda(p.costo, p.moneda)}</span>
           <a className="btn" href={`#/paquete/${p.id}`}>Ver detalle</a>
         </div>
       </div>
