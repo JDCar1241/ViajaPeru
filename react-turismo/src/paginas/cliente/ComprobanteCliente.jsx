@@ -2,8 +2,8 @@
 import { useEffect, useState } from 'react';
 import { pedir, pedirArchivo } from '../../servicios/api.js';
 import './ComprobanteCliente.css';
+import VistaComprobante from '../../componentes/VistaComprobante.jsx';
 import Icono from '../../componentes/Icono.jsx';
-import { codigoReserva } from '../../utils/utils.js';
 
 const numeroCompleto = (c) => `${c.serie}-${String(c.numero).padStart(8, '0')}`;
 
@@ -94,7 +94,6 @@ export default function ComprobanteCliente({ id }) {
 
   if (!comprobante) return null;
 
-  const comprador = comprobante.comprador;
 
   return (
     <main className="cc-contenedor">
@@ -103,67 +102,13 @@ export default function ComprobanteCliente({ id }) {
       </a>
 
       <section className="cc-documento">
-        <div className="cc-cabecera">
-          <span className="cc-etiqueta">VIAJAPERU</span>
-          <h1>
-            {/* El Backend guarda 'Boleta' o 'Factura' (con mayúscula) */}
-            {String(comprobante.tipo).toLowerCase() === 'factura' ? 'FACTURA' : 'BOLETA DE VENTA'}
-          </h1>
-          <strong>
-            {numeroCompleto(comprobante)}
-          </strong>
-        </div>
-
         <div className="cc-estado">
           <span><Icono nombre="check" tamano={16} /></span>
           Comprobante emitido
         </div>
 
-        <div className="cc-datos">
-          <div>
-            <small>Código de reserva</small>
-            <strong>{codigoReserva(comprobante.reserva_id)}</strong>
-          </div>
-
-          <div>
-            <small>Fecha de emisión</small>
-            <strong>
-              {comprobante.emitido_en
-                ? new Date(comprobante.emitido_en).toLocaleString('es-PE', { timeZone: 'America/Lima' })
-                : 'No disponible'}
-            </strong>
-          </div>
-
-          <div>
-            <small>Tipo de comprobante</small>
-            <strong>{comprobante.tipo}</strong>
-          </div>
-        </div>
-
-        {comprador && (
-          <div className="cc-comprador">
-            <h3>Datos del comprador</h3>
-
-            <p><strong>Nombre:</strong> {comprador.nombre || 'No disponible'}</p>
-            <p>
-              <strong>Documento:</strong>{' '}
-              {comprador.tipo_documento || ''} {comprador.numero_documento || ''}
-            </p>
-            {comprador.direccion && (
-              <p><strong>Dirección:</strong> {comprador.direccion}</p>
-            )}
-          </div>
-        )}
-
-        <div className="cc-total">
-          <span>TOTAL</span>
-          <strong>
-            S/ {Number(comprobante.total || 0).toLocaleString('es-PE', {
-              minimumFractionDigits: 2,
-              maximumFractionDigits: 2,
-            })}
-          </strong>
-        </div>
+        {/* Mismos datos que el PDF: los arma el Backend (representacion-comprobante.js) */}
+        <VistaComprobante r={comprobante.representacion} totalSoles={comprobante.total} />
 
         <button
           type="button"

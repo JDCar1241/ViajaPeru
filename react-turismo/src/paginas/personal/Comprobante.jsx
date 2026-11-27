@@ -3,7 +3,8 @@ import './cobros.css';
 import './comprobante.css';
 import { pedir, pedirArchivo } from '../../servicios/api.js';
 import { useSesion } from '../../servicios/auth.js';
-import { soles } from '../../utils/moneda.js';
+import { soles, importe, esUsd, totalReserva, totalReservaDetalle } from '../../utils/moneda.js';
+import VistaComprobante from '../../componentes/VistaComprobante.jsx';
 import { validarDocumento } from '../../utils/documentos.js';
 
 const ROLES = ['Recepcionista', 'Administrador'];
@@ -84,11 +85,13 @@ export default function Comprobante({ id }) {
   }
 
   if (comp) return (
-    <main className="cb-fin">
+    <main className="cb-fin cb-fin--ancho">
       <p className="pill">Comprobante emitido</p>
       <h1>{numeroCompleto(comp)}</h1>
-      <p className="muted">{comp.tipo} · {r.codigo} · {soles(total)}</p>
-      {comp.comprador && (
+      <p className="muted">{comp.tipo} · {r.codigo} · {totalReserva(r)}</p>
+      {comp.representacion ? (
+        <VistaComprobante r={comp.representacion} totalSoles={comp.total} />
+      ) : comp.comprador && (
         <dl className="cp-resumen">
           <div><dt>{comp.comprador.tipo_documento}</dt><dd>{comp.comprador.numero_documento}</dd></div>
           <div><dt>{comp.tipo === 'Factura' ? 'Razón social' : 'Nombre'}</dt><dd>{comp.comprador.nombre}</dd></div>
@@ -243,8 +246,8 @@ export default function Comprobante({ id }) {
             <div><dt>Inicio del viaje</dt><dd>{fecha(r.fecha_inicio_viaje)}</dd></div>
             <div><dt>Titular</dt><dd>{r.cliente.nombres} {r.cliente.apellidos}</dd></div>
             <div><dt>Personas</dt><dd>{personas}</dd></div>
-            <div><dt>Costo individual</dt><dd>{soles(total / personas)}</dd></div>
-            <div><dt>Total</dt><dd>{soles(total)}</dd></div>
+            <div><dt>Costo individual</dt><dd>{esUsd(r) ? importe(Number(r.total_moneda) / personas, 'USD') : soles(total / personas)}</dd></div>
+            <div><dt>Total</dt><dd>{totalReservaDetalle(r)}</dd></div>
           </dl>
           <p className="muted">El PDF incluirá también a los acompañantes.</p>
         </aside>

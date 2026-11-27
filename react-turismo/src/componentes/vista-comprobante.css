@@ -1,0 +1,28 @@
+/* Boleta / factura en pantalla (VistaComprobante.jsx). Paleta única de styles.css. */
+.vc{display:grid;gap:16px;width:100%;padding:24px;border:1px solid var(--line);border-radius:var(--radio);background:#fff;color:var(--ink);text-align:left}
+.vc h3{margin:0 0 4px;font-size:12px;letter-spacing:.04em;text-transform:uppercase;color:var(--muted)}
+.vc p{margin:0}
+.vc-cabecera{display:flex;flex-wrap:wrap;justify-content:space-between;gap:16px}
+.vc-cabecera>div:first-child{display:grid;gap:2px;font-size:14px;color:var(--muted)}
+.vc-marca{font-size:24px;color:var(--navy)}
+.vc-razon{font-weight:700;color:var(--navy)}
+.vc-recuadro{display:grid;gap:4px;min-width:200px;padding:12px 16px;border:2px solid var(--blue);border-radius:var(--radio-s);text-align:center;color:var(--navy)}
+.vc-recuadro b{font-size:18px;color:var(--blue)}
+.vc-aviso{padding:10px 14px;border-radius:var(--radio-s);background:var(--error-bg);color:var(--error);font-size:13px;font-weight:600}
+.vc-datos{display:grid;grid-template-columns:repeat(auto-fit,minmax(130px,1fr));gap:12px;margin:0;padding:12px 0;border-top:1px solid var(--line);border-bottom:1px solid var(--line)}
+.vc-datos dt,.vc-totales dt{font-size:12px;color:var(--muted)}
+.vc-datos dd{margin:2px 0 0;font-weight:700;color:var(--navy)}
+.vc-adquirente p{font-size:15px}
+.vc-tabla-envoltura{overflow-x:auto}
+.vc-tabla{width:100%;border-collapse:collapse;font-size:14px}
+.vc-tabla th{padding:8px;background:var(--sky);color:var(--navy);font-size:12px;text-align:left}
+.vc-tabla td{padding:8px;border-bottom:1px solid var(--line);vertical-align:top}
+.vc-tabla .num{text-align:right;white-space:nowrap}
+.vc-nota{font-size:12px;color:var(--muted)}
+.vc-pasajeros ol{margin:0;padding-left:20px;font-size:14px}
+.vc-totales{display:grid;gap:4px;justify-self:end;min-width:260px;margin:0}
+.vc-totales div{display:flex;justify-content:space-between;gap:24px}
+.vc-totales dd{margin:0;font-weight:600}
+.vc-total dt,.vc-total dd{font-size:17px;font-weight:800;color:var(--blue)}
+.vc-letras{font-weight:700;color:var(--navy)}
+.vc-pie{display:grid;gap:4px;font-size:12px;color:var(--muted)}

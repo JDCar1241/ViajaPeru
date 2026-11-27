@@ -15,6 +15,7 @@ import {
 import { generarPdf } from '../servicios/comprobante.pdf.js';
 import { liberarVencidas, vencida, MINUTOS_APARTADO, MINUTOS_PAGO } from '../servicios/vencimientos.js';
 import { esUsd, tipoCambioDe, aCentimosUsd } from '../utils/moneda.js';
+import { representacion } from '../servicios/representacion-comprobante.js';
 import { emitirYEnviarComprobante } from '../servicios/comprobante-digital.js';
 import {
   crearCargo,
@@ -1250,7 +1251,7 @@ router.get('/reservas/:id/comprobante', async (req, res, next) => {
       return fallo(res, 404, 'Esta reserva todavía no tiene comprobante.');
     }
 
-    res.json(data);
+    res.json({ ...data, representacion: representacion(data) });
   } catch (e) {
     next(e);
   }

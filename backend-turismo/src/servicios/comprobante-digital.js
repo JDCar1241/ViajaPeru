@@ -1,6 +1,7 @@
 import { supabase } from '../config/supabase.js';
 import { enviarCorreo } from './correo.js';
 import { generarPdf, numeroCompleto } from './comprobante.pdf.js';
+import { formatoImporte } from './representacion-comprobante.js';
 
 // HU-007 · Enviar comprobante digital.
 // - Pago en línea (tarjeta, Yape por Culqi o saldo): se emite la BOLETA automáticamente a nombre
@@ -74,7 +75,7 @@ export async function enviarComprobantePorCorreo(comprobanteId, destinatario = n
   const numero = numeroCompleto(comp);
   const d = comp.detalle || {};
   const pdf = await generarPdf(comp);
-  const total = Number(comp.total).toLocaleString('es-PE', { style: 'currency', currency: 'PEN' });
+  const total = formatoImporte(comp.total_moneda ?? comp.total, comp.moneda || 'PEN');
   const fechaViaje = d.fecha_inicio_viaje
     ? new Date(d.fecha_inicio_viaje).toLocaleString('es-PE', {
         dateStyle: 'long', timeStyle: 'short', timeZone: 'America/Lima',
@@ -83,7 +84,7 @@ export async function enviarComprobantePorCorreo(comprobanteId, destinatario = n
 
   const html = `
     <div style="font-family:Arial,sans-serif;color:#243247;max-width:600px;margin:auto">
-      <h2 style="color:#0A2540">Tu ${escaparHtml(comp.tipo.toLowerCase())} electrónica</h2>
+      <h2 style="color:#0A2540">Tu ${escaparHtml(comp.tipo === 'Factura' ? 'factura' : 'boleta de venta')}</h2>
       <p>Gracias por tu compra en ViajaPerú. Adjuntamos tu comprobante en PDF.</p>
       <p><strong>Comprobante:</strong> ${escaparHtml(comp.tipo)} ${escaparHtml(numero)}</p>
       <p><strong>Reserva:</strong> ${escaparHtml(d.codigo || '')}</p>

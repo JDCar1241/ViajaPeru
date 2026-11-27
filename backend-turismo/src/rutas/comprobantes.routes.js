@@ -1,4 +1,5 @@
 import { Router } from 'express';
+import { representacion } from '../servicios/representacion-comprobante.js';
 import { supabase } from '../config/supabase.js';
 import { requiereSesion, fallo } from '../middlewares/auth.middleware.js';
 import { generarPdf, numeroCompleto } from '../servicios/comprobante.pdf.js';
@@ -60,7 +61,11 @@ router.post('/reservas/:id/comprobante', requiereSesion(ROLES), async (req, res,
     // HU-007: el comprobante digital se envía al correo del cliente (se espera el resultado)
     const correoEnviado = await enviarYConfirmar(data.id);
 
-    res.status(201).json({ ...data, correo_enviado: correoEnviado });
+    // Comprobante completo con su representación (lo que se imprime), para mostrarlo en pantalla
+    const { data: completo } = await supabase.rpc('obtener_comprobante', { p_id: data.id });
+    const conRepresentacion = completo ? { ...completo, representacion: representacion(completo) } : data;
+
+    res.status(201).json({ ...conRepresentacion, correo_enviado: correoEnviado });
   } catch (e) { next(e); }
 });
 
@@ -72,7 +77,7 @@ router.get('/reservas/:id/comprobante', requiereSesion(ROLES), async (req, res, 
     const { data, error } = await supabase.rpc('comprobante_de_reserva', { p_reserva_id: id });
     if (error) throw error;
     if (!data) return fallo(res, 404, 'Esta reserva aún no tiene comprobante.');
-    res.json(data);
+    res.json({ ...data, representacion: representacion(data) });
   } catch (e) { next(e); }
 });
 

@@ -13,3 +13,7 @@
 .cp-resumen dt{font-size:13px;color:var(--muted)}
 .cp-resumen dd{margin:0;font-weight:600;color:var(--navy)}
 .cb-tabs{display:flex;flex-wrap:wrap;gap:10px;margin:28px 0 0}
+
+/* Comprobante emitido (VistaComprobante) en la pantalla de caja */
+.cb-fin--ancho{max-width:820px}
+.cb-fin .vc{margin:0 auto 16px}
