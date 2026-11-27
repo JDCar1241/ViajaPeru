@@ -41,6 +41,8 @@ export default function AdminPaquete({ id }) {
   const [guardando, setGuardando] = useState(false);
   const [confirmarEliminar, setConfirmarEliminar] = useState(false);
   const [eliminando, setEliminando] = useState(false);
+  // Itinerario fuera de orden: se pide confirmación antes de reordenarlo y guardar
+  const [confirmarOrden, setConfirmarOrden] = useState(false);
   // Hora de salida según el itinerario GUARDADO (no el que se está editando)
   const [horaSalida, setHoraSalida] = useState(null);
 
@@ -110,7 +112,9 @@ export default function AdminPaquete({ id }) {
     return n;
   };
 
-  const guardar = async (e) => {
+  // Si las actividades no están en orden cronológico, se avisa antes de guardar:
+  // "Aceptar" reordena y guarda; "Cancelar" vuelve al formulario para corregirlo a mano.
+  const guardar = (e) => {
     e.preventDefault();
     setAviso(null);
     const n = revisar();
@@ -119,12 +123,29 @@ export default function AdminPaquete({ id }) {
       setAviso({ ok: false, texto: 'Revisa los datos del paquete.' });
       return;
     }
+    // ordenarItinerario es estable y devuelve los mismos objetos: si alguno cambió de lugar, estaba desordenado
+    const ordenado = ordenarItinerario(form.itinerario);
+    if (ordenado.some((a, i) => a !== form.itinerario[i])) {
+      setConfirmarOrden(true);
+      return;
+    }
+    enviarPaquete(form.itinerario);
+  };
+
+  const reordenarYGuardar = () => {
+    const ordenado = ordenarItinerario(form.itinerario);
+    setForm({ ...form, itinerario: ordenado });
+    setConfirmarOrden(false);
+    enviarPaquete(ordenado);
+  };
+
+  const enviarPaquete = async (itinerario) => {
     setGuardando(true);
     try {
       const cuerpo = {
         ...form,
         costo: Number(form.costo),
-        itinerario: form.itinerario.map((a) => ({ ...a, dia: Number(a.dia), descripcion: a.descripcion.trim() })),
+        itinerario: itinerario.map((a) => ({ ...a, dia: Number(a.dia), descripcion: a.descripcion.trim() })),
       };
       if (nuevo) {
         const r = await enviar('/admin/paquetes', 'POST', cuerpo);
@@ -181,7 +202,8 @@ export default function AdminPaquete({ id }) {
         <fieldset className="ad-itinerario">
           <legend>Itinerario (obligatorio)</legend>
           <p className="muted ad-nota">
-            Indica el día y la hora (formato 24 h) de cada actividad. Al guardar se ordena por día y hora.
+            Indica el día y la hora (formato 24 h) de cada actividad. Si no están en orden, al guardar te
+            avisaremos para reordenarlas por día y hora.
             La primera actividad del Día 1 es la hora de salida de todas las salidas del paquete.
           </p>
           {form.itinerario.length === 0 && <p className="muted">Sin actividades. Agrega la primera.</p>}
@@ -235,6 +257,18 @@ export default function AdminPaquete({ id }) {
       >
         <p>Se eliminará <strong>{form.nombre}</strong> con todas sus salidas y su foto.</p>
         <p>Si alguna salida ya tuvo reservas no se podrá eliminar: en ese caso desactiva sus salidas. Esta acción no se puede deshacer.</p>
+      </Confirmar>
+
+      <Confirmar
+        abierto={confirmarOrden}
+        titulo="Itinerario fuera de orden"
+        confirmar="Aceptar"
+        volver="Cancelar"
+        onConfirmar={reordenarYGuardar}
+        onCerrar={() => setConfirmarOrden(false)}
+      >
+        <p>El itinerario se reordenará cronológicamente antes de guardar.</p>
+        <p>Pulsa <strong>Cancelar</strong> si prefieres volver al formulario y corregirlo a mano.</p>
       </Confirmar>
     </main>
   );
