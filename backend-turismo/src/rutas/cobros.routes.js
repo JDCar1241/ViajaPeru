@@ -1,4 +1,5 @@
 import { Router } from 'express';
+import { liberarVencidas, vencida } from '../servicios/vencimientos.js';
 import { supabase } from '../config/supabase.js';
 import { requiereSesion, fallo } from '../middlewares/auth.middleware.js';
 import { crearCargo, reembolsar, ErrorPasarela } from '../config/culqi.js';
@@ -7,7 +8,7 @@ import { validarComprador } from './comprobantes.routes.js';
 import { emitirYEnviarComprobante } from '../servicios/comprobante-digital.js';
 
 const router = Router();
-const ESTADOS = ['Pendiente', 'Pagada', 'Cancelada'];
+const ESTADOS = ['Pendiente', 'Pagada', 'Cancelada', 'Vencida'];
 const METODOS = ['Efectivo', 'Tarjeta', 'QR'];
 const MEDIOS_QR = ['Yape', 'Plin'];
 const MONEDAS = ['PEN', 'USD'];
@@ -39,6 +40,7 @@ router.get('/', requiereSesion(ROLES), async (req, res, next) => {
   try {
     const estado = req.query.estado === undefined ? 'Pendiente' : String(req.query.estado);
     if (!ESTADOS.includes(estado)) return fallo(res, 400, 'El estado no es válido.');
+    await liberarVencidas();
     const q = String(req.query.q || '').trim().slice(0, 20);
     const { data, error } = await supabase.rpc('listar_reservas', { p_estado: estado, p_q: q, p_limit: 50 });
     if (error) throw error;
@@ -127,6 +129,7 @@ router.post('/:id/pagos', requiereSesion(ROLES), async (req, res, next) => {
     if (eRes) throw eRes;
     if (!reserva) return fallo(res, 404, 'La reserva no existe.');
     if (reserva.estado !== 'Pendiente') return fallo(res, 409, 'Esta reserva ya no está pendiente de pago.');
+    if (vencida(reserva.expira_en)) return fallo(res, 409, 'El plazo para pagar esta reserva online venció y sus cupos se liberaron.');
 
     const sumaCent = pagos.reduce((a, p) => a + Math.round(p.monto * 100), 0);
     if (sumaCent !== Math.round(Number(reserva.total) * 100)) {
@@ -207,6 +210,7 @@ router.post('/:id/pagos', requiereSesion(ROLES), async (req, res, next) => {
       const m = error.message || '';
       if (m.includes('RESERVA_NO_ENCONTRADA')) return fallo(res, 404, 'La reserva no existe.');
       if (m.includes('RESERVA_NO_PENDIENTE') || error.code === '23505') return fallo(res, 409, 'Esta reserva ya no está pendiente de pago.');
+      if (m.includes('RESERVA_VENCIDA')) return fallo(res, 409, 'El plazo para pagar esta reserva online venció y sus cupos se liberaron.');
       if (m.includes('MONTO_NO_COINCIDE')) return fallo(res, 400, 'La suma de los pagos debe ser igual al total de la reserva.');
       if (m.includes('DATOS_INVALIDOS') || error.code === '23514') return fallo(res, 400, 'Los datos del pago no son válidos.');
       throw error;

@@ -2,6 +2,7 @@ import { useEffect, useState } from 'react';
 import '../../estilos/reservas.css';
 import Campo from '../../componentes/Campo.jsx';
 import Telefono from '../../componentes/Telefono.jsx';
+import CuentaRegresiva from '../../componentes/CuentaRegresiva.jsx';
 import { esCorreo, esTelefono, noVacio } from '../../utils/validaciones.js';
 import { telefonoValido } from '../../utils/paises.js';
 import { analizarMrz, limpiarMrz } from '../../utils/mrz.js';
@@ -437,6 +438,14 @@ export default function Reserva({ paqueteId, salidaId }) {
   const [acomp, setAcomp] = useState([]);
   const [recienAgregado, setRecienAgregado] = useState(null); // uid del último acompañante agregado
   const [declara, setDeclara] = useState(false); // declaración jurada (solo compra online)
+
+  // Compra online en dos pasos: 1) cuántas personas viajan -> se apartan los cupos (reserva
+  // 'Borrador'); 2) datos del titular y de exactamente N-1 acompañantes. Ver 16-apartar-cupos.sql.
+  const [apartado, setApartado] = useState(null); // { id, num_personas, total, expira_en }
+  const [cargaApartado, setCargaApartado] = useState('cargando');
+  const [elegirPersonas, setElegirPersonas] = useState(false); // volver al paso 1 con un apartado vigente
+  const [personasElegidas, setPersonasElegidas] = useState(1);
+  const [apartando, setApartando] = useState(false);
   const [err, setErr] = useState({});
   const [fallo, setFallo] = useState('');
   const [enviando, setEnviando] = useState(false);
@@ -466,6 +475,24 @@ export default function Reserva({ paqueteId, salidaId }) {
 
     cargar();
   }, [paqueteId, sesion]);
+
+  useEffect(() => {
+    if (!sesion || !esCliente) {
+      setCargaApartado('listo');
+      return;
+    }
+    let activo = true;
+    pedir(`/portal-cliente/salidas/${encodeURIComponent(salidaId)}/apartado`)
+      .then((r) => {
+        if (!activo || !r) return;
+        setApartado(r);
+        setPersonasElegidas(r.num_personas);
+        setAcomp(Array.from({ length: r.num_personas - 1 }, nuevoAcompanante));
+      })
+      .catch((e) => console.error('Error al consultar el apartado:', e))
+      .finally(() => { if (activo) setCargaApartado('listo'); });
+    return () => { activo = false; };
+  }, [sesion, esCliente, salidaId]);
 
   useEffect(() => {
     if (!sesion || !esCliente) {
@@ -518,7 +545,7 @@ export default function Reserva({ paqueteId, salidaId }) {
     );
   }
 
-  if (carga === 'cargando' || cargaPerfil === 'cargando') {
+  if (carga === 'cargando' || cargaPerfil === 'cargando' || cargaApartado === 'cargando') {
     return (
       <main className="vp-centro">
         <p>Cargando datos de la reserva…</p>
@@ -587,12 +614,15 @@ export default function Reserva({ paqueteId, salidaId }) {
   const bloqueada =
     !salida ||
     salida[C.estado] !== 'Activa' ||
-    cupos <= 0 ||
+    (cupos <= 0 && !(esCliente && apartado)) ||
     fechaPasada;
 
-  const personas = 1 + acomp.length;
+  const conApartado = esCliente && !!apartado;
+  const personas = conApartado ? apartado.num_personas : 1 + acomp.length;
   const restantes = cupos - personas;
-  const excede = restantes < 0;
+  const excede = !conApartado && restantes < 0; // con apartado, los cupos ya están descontados
+  // Máximo a elegir en el paso 1: los libres + los que esta cuenta ya tiene apartados (titular + 20)
+  const maxPersonas = Math.min(21, cupos + (apartado?.num_personas || 0));
 
   if (bloqueada) {
     return (
@@ -637,6 +667,42 @@ export default function Reserva({ paqueteId, salidaId }) {
 
   const setCampoManual = (k) => (e) =>
     cambiarManual({ [k]: e.target.value });
+
+  // Paso 1: apartar los cupos en cuanto el cliente indica cuántas personas viajan
+  async function apartar(e) {
+    e.preventDefault();
+    setFallo('');
+    setApartando(true);
+    try {
+      const r = await pedir('/portal-cliente/reservas/apartar', {
+        method: 'POST',
+        body: JSON.stringify({ salida_id: salida[C.id], personas: personasElegidas }),
+      });
+      setApartado(r);
+      setElegirPersonas(false);
+      // Exactamente N-1 acompañantes: se conservan los ya escritos y se agregan en blanco los que falten
+      setAcomp((lista) => {
+        const n = r.num_personas - 1;
+        return lista.length >= n
+          ? lista.slice(0, n)
+          : [...lista, ...Array.from({ length: n - lista.length }, nuevoAcompanante)];
+      });
+      setErr({});
+    } catch (ex) {
+      setFallo(ex.message || 'No pudimos apartar los cupos.');
+      if (ex.estado === 409) cargar(); // cupos actualizados
+    } finally {
+      setApartando(false);
+    }
+  }
+
+  // Se acabó el tiempo: los cupos se liberan y se vuelve al paso 1
+  function vencioApartado(mensaje) {
+    setApartado(null);
+    setElegirPersonas(false);
+    setFallo(mensaje || 'Se acabó el tiempo para completar la reserva y los cupos se liberaron. Vuelve a indicar cuántas personas viajan.');
+    cargar();
+  }
 
   function validar() {
     const n = {};
@@ -761,7 +827,6 @@ export default function Reserva({ paqueteId, salidaId }) {
 
       if (esCliente) {
         const body = {
-          salida_id: salida[C.id],
           modo_titular: modoTitular,
           acompanantes: acomp.map(paraEnviar),
           declaracion_jurada: declara,
@@ -777,7 +842,7 @@ export default function Reserva({ paqueteId, salidaId }) {
           };
         }
 
-        r = await pedir('/portal-cliente/reservas', {
+        r = await pedir(`/portal-cliente/reservas/${apartado.id}/completar`, {
           method: 'POST',
           body: JSON.stringify(body),
         });
@@ -802,7 +867,10 @@ export default function Reserva({ paqueteId, salidaId }) {
     } catch (ex) {
       console.error('Error al registrar reserva:', ex);
 
-      if (ex.estado === 409) {
+      if (esCliente && ex.estado === 410) {
+        // Se acabó el tiempo del apartado
+        vencioApartado(ex.message);
+      } else if (ex.estado === 409) {
         // 409 = sin cupos o salida no disponible: el Backend dice cuál de los dos.
         setFallo(
           (ex.message || 'La salida cambió.') + ' Revisa los cupos actualizados.'
@@ -818,6 +886,55 @@ export default function Reserva({ paqueteId, salidaId }) {
     }
   }
 
+  if (esCliente && (!apartado || elegirPersonas)) {
+    const opciones = Array.from({ length: Math.max(maxPersonas, 1) }, (_, i) => ({
+      valor: String(i + 1),
+      texto: i === 0 ? '1 persona (solo yo)' : `${i + 1} personas`,
+    }));
+    return (
+      <main className="vp-reserva">
+        <header>
+          <h1>Reservar paquete</h1>
+          <p className="vp-sub">{paquete.nombre} · salida del {fecha(fechaSalida)}</p>
+        </header>
+
+        <form className="vp-panel" onSubmit={apartar} noValidate>
+          <h2>¿Cuántas personas viajan?</h2>
+          <p className="vp-sub">
+            Cuéntate a ti. Al continuar apartamos esos cupos para ti durante 30 minutos mientras completas
+            los datos; luego tendrás 30 minutos para pagar.
+          </p>
+          <div className="vp-personas">
+            <Campo
+              etiqueta="Personas que viajan"
+              opciones={opciones}
+              value={String(personasElegidas)}
+              onChange={(e) => setPersonasElegidas(Number(e.target.value))}
+            />
+            <p className="vp-sub">
+              {apartado
+                ? `Tienes ${apartado.num_personas} apartados; quedan ${cupos} cupos libres más.`
+                : `${cupos} ${cupos === 1 ? 'cupo disponible' : 'cupos disponibles'}.`}
+            </p>
+          </div>
+
+          {fallo && <p className="vp-alerta" role="alert">{fallo}</p>}
+
+          <div className="vp-fila">
+            <button type="submit" className="vp-btn vp-btn--amarillo" disabled={apartando}>
+              {apartando ? 'Apartando cupos…' : apartado ? 'Cambiar cantidad' : 'Apartar cupos y continuar'}
+            </button>
+            {apartado && (
+              <button type="button" className="vp-btn vp-btn--borde" onClick={() => setElegirPersonas(false)}>
+                Volver sin cambiar
+              </button>
+            )}
+          </div>
+        </form>
+      </main>
+    );
+  }
+
   return (
     <main className="vp-reserva">
       <header>
@@ -827,6 +944,9 @@ export default function Reserva({ paqueteId, salidaId }) {
         <p className="vp-sub">
           {paquete.nombre} · salida del {fecha(fechaSalida)}
         </p>
+        {conApartado && (
+          <CuentaRegresiva hasta={apartado.expira_en} texto="Tus cupos están apartados" onVencer={vencioApartado} />
+        )}
       </header>
 
       <form onSubmit={enviar} noValidate>
@@ -1024,8 +1144,13 @@ export default function Reserva({ paqueteId, salidaId }) {
           {acomp.length === 0 && (
             <p className="vp-sub">
               {esCliente
-                ? 'Viajas sin acompañantes. Agrégalos si corresponde.'
+                ? 'Viajas sin acompañantes.'
                 : 'El cliente viaja solo. Agrega acompañantes si corresponde.'}
+            </p>
+          )}
+          {conApartado && acomp.length > 0 && (
+            <p className="vp-sub">
+              Completa los datos de {acomp.length === 1 ? 'tu acompañante' : `tus ${acomp.length} acompañantes`}.
             </p>
           )}
 
@@ -1045,6 +1170,7 @@ export default function Reserva({ paqueteId, salidaId }) {
                 enfocarDocumento={a.uid === recienAgregado}
               />
 
+              {!conApartado && (
               <button
                 type="button"
                 className="vp-btn vp-btn--borde"
@@ -1056,9 +1182,19 @@ export default function Reserva({ paqueteId, salidaId }) {
               >
                 Quitar
               </button>
+              )}
             </div>
           ))}
 
+          {conApartado ? (
+            <button
+              type="button"
+              className="vp-btn vp-btn--borde"
+              onClick={() => { setFallo(''); setElegirPersonas(true); }}
+            >
+              Cambiar cantidad de personas
+            </button>
+          ) : (
           <button
             type="button"
             className="vp-btn vp-btn--borde"
@@ -1077,6 +1213,7 @@ export default function Reserva({ paqueteId, salidaId }) {
           >
             Agregar acompañante
           </button>
+          )}
 
           {acomp.length >= 20 && (
             <p className="vp-sub">
@@ -1089,6 +1226,7 @@ export default function Reserva({ paqueteId, salidaId }) {
           className={'vp-cupos' + (excede ? ' vp-cupos--excede' : '')}
           aria-live="polite"
         >
+          {!conApartado && (
           <div className="vp-asientos" aria-hidden="true">
             {Array.from(
               { length: Math.min(cupos, 24) },
@@ -1101,6 +1239,13 @@ export default function Reserva({ paqueteId, salidaId }) {
             )}
           </div>
 
+          )}
+
+          {conApartado ? (
+            <p>
+              <strong>{personas}</strong> {personas === 1 ? 'cupo apartado' : 'cupos apartados'} para ti.
+            </p>
+          ) : (
           <p>
             <strong>{personas}</strong>{' '}
             {personas === 1 ? 'persona' : 'personas'} de{' '}
@@ -1109,6 +1254,7 @@ export default function Reserva({ paqueteId, salidaId }) {
               ? ' — superas los cupos de esta salida.'
               : ` — quedarán ${restantes}.`}
           </p>
+          )}
 
           {esCliente && (
             <div className="vp-declara">

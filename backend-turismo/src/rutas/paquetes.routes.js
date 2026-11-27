@@ -1,5 +1,6 @@
 
 import { Router } from 'express';
+import { liberarVencidas } from '../servicios/vencimientos.js';
 import { supabase } from '../config/supabase.js';
 import { fallo } from '../middlewares/auth.middleware.js';
 import { idValido } from '../utils/comunes.js';
@@ -64,6 +65,8 @@ router.get('/', async (req, res, next) => {
       return fallo(res, 400, invalido);
     }
 
+    await liberarVencidas(); // cupos de compras online abandonadas
+
     const { data, error } = await supabase.rpc(
       'listar_paquetes',
       valores
@@ -104,6 +107,8 @@ router.get('/:id', async (req, res, next) => {
         'id debe ser un número entero mayor a 0'
       );
     }
+
+    await liberarVencidas();
 
     const { data, error } = await supabase.rpc(
       'obtener_paquete',

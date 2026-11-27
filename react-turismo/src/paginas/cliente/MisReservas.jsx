@@ -31,6 +31,7 @@ const textoEstado = (estado) => {
   if (e === 'pagada') return 'Pagada';
   if (e === 'pendiente') return 'Pendiente de pago';
   if (e === 'cancelada') return 'Cancelada';
+  if (e === 'vencida') return 'Vencida';
 
   return estado || 'Sin estado';
 };
@@ -40,7 +41,7 @@ const claseEstado = (estado) => {
 
   if (e === 'pagada') return 'mc-estado-pagada';
   if (e === 'pendiente') return 'mc-estado-pendiente';
-  if (e === 'cancelada') return 'mc-estado-cancelada';
+  if (e === 'cancelada' || e === 'vencida') return 'mc-estado-cancelada';
 
   return 'mc-estado-otro';
 };
@@ -309,7 +310,9 @@ export default function MisReservas() {
                                   ? ` el ${fecha(r.pagada_en)}`
                                   : ''
                               }.`
-                            : 'Consulta la información de tu reserva.'}
+                            : String(r.estado || '').toLowerCase() === 'vencida'
+                              ? 'No se pagó a tiempo y los cupos se liberaron.'
+                              : 'Consulta la información de tu reserva.'}
                       </span>
 
                       <div className="mc-botones">

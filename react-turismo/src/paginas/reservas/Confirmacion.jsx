@@ -3,6 +3,7 @@ import '../../estilos/reservas.css';
 import { pedir, ultima } from '../../servicios/api.js';
 import { useSesion } from '../../servicios/auth.js';
 import { soles } from '../../utils/moneda.js';
+import CuentaRegresiva from '../../componentes/CuentaRegresiva.jsx';
 
 // La salida llega como fecha y hora ISO (en UTC). Cortar los 10 primeros caracteres
 // daba el día UTC, que puede ser el día siguiente al de Lima: se formatea en hora de Lima.
@@ -130,6 +131,11 @@ export default function Confirmacion({ id }) {
           <p className="vp-ok">
             Reserva registrada correctamente
           </p>
+
+          {/* Compra online: plazo para pagar antes de que los cupos se liberen */}
+          {pendiente && r.expira_en && (
+            <CuentaRegresiva hasta={r.expira_en} texto="Paga tu reserva" />
+          )}
 
           <h1>{r.paquete || 'Reserva de viaje'}</h1>
 

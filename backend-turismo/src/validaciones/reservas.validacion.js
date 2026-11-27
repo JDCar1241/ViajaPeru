@@ -73,6 +73,7 @@ function aplicarMrz(p, quien) {
   p.apellidos = r.datos.apellidos;
   p.nombres = r.datos.nombres;
   p.fecha_nacimiento = r.datos.fecha_nacimiento;
+  p.nacionalidad = r.datos.nacionalidad || null;
   p.verificado_mrz = true;
 
   return '';
@@ -129,9 +130,11 @@ function revisar(p, quien, fechaSalida, exigirMrz = true) {
 }
 
 // Se conserva "dni" por compatibilidad con la función SQL crear_reserva.
+// Nacionalidad: la de la MRZ (pasaporte); con DNI es peruana; con CE no se conoce.
 export const paraRpc = (p) => {
   const { verificado_mrz: _, ...resto } = p;
-  return { ...resto, dni: p.nro_documento };
+  const nacionalidad = p.nacionalidad || (p.tipo_documento === 'DNI' ? 'PER' : null);
+  return { ...resto, dni: p.nro_documento, nacionalidad };
 };
 
 // Devuelve { error } o { cliente, acompanantes } con los datos normalizados.

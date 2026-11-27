@@ -10,7 +10,8 @@
   "scripts": {
     "start": "node src/index.js",
     "dev": "node --watch-path=./src src/index.js",
-    "probar": "node scripts/probar-api.mjs"
+    "probar": "node scripts/probar-api.mjs",
+    "probar:concurrencia": "node scripts/probar-concurrencia.mjs"
   },
   "dependencies": {
     "@supabase/supabase-js": "^2.45.0",

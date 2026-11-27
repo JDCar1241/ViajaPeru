@@ -13,6 +13,7 @@ import {
   idValido,
 } from '../utils/comunes.js';
 import { generarPdf } from '../servicios/comprobante.pdf.js';
+import { liberarVencidas, vencida, MINUTOS_APARTADO, MINUTOS_PAGO } from '../servicios/vencimientos.js';
 import { emitirYEnviarComprobante } from '../servicios/comprobante-digital.js';
 import {
   crearCargo,
@@ -28,6 +29,9 @@ const telefonoValido = (telefono) =>
   esTelefonoPeru(telefono) || telefonoInternacionalValido(telefono);
 
 const MONEDAS = ['PEN', 'USD'];
+
+const MSG_PLAZO_PAGO =
+  'Se acabó el tiempo para pagar esta reserva y sus cupos se liberaron. Vuelve a reservar desde el paquete.';
 
 // Cada intento de pago llega a Culqi: se limita por cuenta para frenar pruebas masivas de tarjetas.
 const limitarPago = crearLimitador({
@@ -98,6 +102,7 @@ async function obtenerClienteUsuario(req) {
     fecha_nacimiento: perfil.fecha_nacimiento,
     correo: txt(perfil.correo) || txt(req.usuario.correo),
     telefono: txt(perfil.telefono),
+    nacionalidad: txt(perfil.nacionalidad) || null,
   };
 
   let clienteId = null;
@@ -228,9 +233,13 @@ router.get('/reservas', async (req, res, next) => {
       return fallo(res, 404, 'No se encontraron los datos de tu perfil.');
     }
 
+    await liberarVencidas();
+
+    // Los borradores (cupos apartados mientras se llenan los datos) no se listan
     let consulta = supabase
       .from('reservas')
       .select('id, estado, total, num_personas, creado_en, pagada_en')
+      .neq('estado', 'Borrador')
       .order('creado_en', { ascending: false });
 
     consulta = aplicarFiltroPropiedad(
@@ -296,6 +305,11 @@ router.get('/reservas/:id/tipo-cambio', async (req, res, next) => {
 
     if (reserva.estado !== 'Pendiente') {
       return fallo(res, 409, 'Esta reserva ya no está pendiente de pago.');
+    }
+
+    // Compra online: no se inicia un cobro si ya pasó el plazo para pagar
+    if (vencida(reserva.expira_en)) {
+      return fallo(res, 409, MSG_PLAZO_PAGO);
     }
 
     const tc = await tipoCambioUsd();
@@ -404,6 +418,11 @@ router.post('/reservas/:id/pagar', limitarPago, async (req, res, next) => {
 
     if (reserva.estado !== 'Pendiente') {
       return fallo(res, 409, 'Esta reserva ya no está pendiente de pago.');
+    }
+
+    // Compra online: no se inicia un cobro si ya pasó el plazo para pagar
+    if (vencida(reserva.expira_en)) {
+      return fallo(res, 409, MSG_PLAZO_PAGO);
     }
 
     const total = Number(reserva.total);
@@ -588,6 +607,10 @@ router.post('/reservas/:id/pagar', limitarPago, async (req, res, next) => {
         return fallo(res, 409, 'La reserva ya no está pendiente de pago.');
       }
 
+      if (mensaje.includes('RESERVA_VENCIDA')) {
+        return fallo(res, 409, MSG_PLAZO_PAGO);
+      }
+
       if (mensaje.includes('SALDO_INSUFICIENTE')) {
         return fallo(res, 409, 'Tu saldo a favor cambió. Revisa el importe e inténtalo de nuevo.');
       }
@@ -712,158 +735,225 @@ router.get('/reservas/:id', async (req, res, next) => {
   }
 });
 
+// =========================================================
+// COMPRA ONLINE EN DOS PASOS (supabase/16-apartar-cupos.sql)
+// Criterio: "El sistema debe crear una reserva en cuanto el cliente indica cuántas personas
+// viajan, y descontarlas del stock del paquete".
+//   1. POST /reservas/apartar         { salida_id, personas }  -> reserva 'Borrador', cupos descontados
+//   2. POST /reservas/:id/completar   { modo_titular, cliente, acompanantes, declaracion_jurada }
+//                                     -> reserva 'Pendiente', lista para pagar
+// Si no se completa o no se paga a tiempo, vence y los cupos vuelven a la salida.
+// =========================================================
+
+const MAX_PERSONAS = 21; // titular + 20 acompañantes
+const MSG_TIEMPO_AGOTADO =
+  'Se acabó el tiempo para completar la reserva y los cupos se liberaron. Vuelve a indicar cuántas personas viajan.';
+
+// Titular de la reserva: los datos de la cuenta o los que se escriben a mano ("Ingresar otro titular").
+function armarTitular(usuario, body) {
+  const modoManual = body.modo_titular === 'manual' || body.usar_datos_cuenta === false;
+
+  let titular;
+  if (modoManual) {
+    const c = body.cliente || {};
+    titular = {
+      tipo_documento: txt(c.tipo_documento).toUpperCase(),
+      nro_documento: txt(c.nro_documento ?? c.numero_documento ?? c.dni).toUpperCase(),
+      apellidos: txt(c.apellidos),
+      nombres: txt(c.nombres),
+      fecha_nacimiento: txt(c.fecha_nacimiento),
+      correo: txt(c.correo),
+      telefono: txt(c.telefono),
+      mrz: Array.isArray(c.mrz) ? c.mrz : undefined, // solo pasaporte
+    };
+  } else {
+    const cliente = usuario.cliente;
+    titular = {
+      tipo_documento: cliente.tipo_documento,
+      nro_documento: cliente.dni,
+      apellidos: cliente.apellidos,
+      nombres: cliente.nombres,
+      fecha_nacimiento: txt(body.cliente?.fecha_nacimiento) || cliente.fecha_nacimiento,
+      correo: cliente.correo,
+      telefono: cliente.telefono,
+      nacionalidad: cliente.nacionalidad,
+    };
+  }
+
+  const incompleto =
+    !titular.tipo_documento || !titular.nro_documento || !titular.nombres || !titular.apellidos ||
+    !titular.fecha_nacimiento || !titular.correo || !titular.telefono;
+  if (incompleto) {
+    return {
+      error: modoManual ? 'Completa todos los datos del titular.' : 'Completa tus datos personales antes de reservar.',
+    };
+  }
+  return { titular, modoManual };
+}
+
+const plural = (n, uno, varios) => `${n} ${n === 1 ? uno : varios}`;
+
 // POST /api/portal-cliente/reservas
-router.post('/reservas', async (req, res, next) => {
+// Versión anterior (todo en un paso). Una pestaña abierta antes del cambio debe recargarse.
+router.post('/reservas', (_req, res) =>
+  fallo(res, 410, 'La página de reserva se actualizó. Recárgala (Ctrl+Shift+R) y vuelve a intentarlo.'));
+
+// GET /api/portal-cliente/salidas/:id/apartado
+// Cupos que esta cuenta tiene apartados (borrador vigente) en esa salida, o null.
+// Sirve para retomar la reserva si se recarga la página.
+router.get('/salidas/:id/apartado', async (req, res, next) => {
+  try {
+    const salidaId = idValido(req.params.id);
+    if (!salidaId) return fallo(res, 400, 'La salida no es válida.');
+
+    const { data, error } = await supabase
+      .from('reservas')
+      .select('id, estado, num_personas, total, expira_en')
+      .eq('creado_por', req.usuario.id)
+      .eq('salida_id', salidaId)
+      .eq('estado', 'Borrador')
+      .gt('expira_en', new Date().toISOString())
+      .order('id', { ascending: false })
+      .limit(1)
+      .maybeSingle();
+    if (error) throw error;
+
+    res.json(data || null);
+  } catch (e) {
+    next(e);
+  }
+});
+
+// POST /api/portal-cliente/reservas/apartar   { salida_id, personas }
+router.post('/reservas/apartar', async (req, res, next) => {
   try {
     const usuario = await obtenerClienteUsuario(req);
+    if (!usuario) return fallo(res, 400, 'No se encontraron los datos de tu perfil.');
 
-    if (!usuario) {
-      return fallo(res, 400, 'No se encontraron los datos de tu perfil.');
+    const salidaId = idValido(req.body?.salida_id);
+    if (!salidaId) return fallo(res, 400, 'La salida no es válida.');
+
+    const personas = Number(req.body?.personas);
+    if (!Number.isInteger(personas) || personas < 1 || personas > MAX_PERSONAS) {
+      return fallo(res, 400, `Indica cuántas personas viajan (de 1 a ${MAX_PERSONAS}).`);
     }
+
+    // Titular provisional: la cuenta. Al completar se puede elegir otro titular.
+    const c = usuario.cliente;
+    if (!c.tipo_documento || !c.dni || !c.nombres || !c.apellidos || !c.correo || !c.telefono) {
+      return fallo(res, 400, 'Completa tus datos personales antes de reservar.');
+    }
+
+    const { data, error } = await supabase.rpc('apartar_cupos', {
+      p_salida_id: salidaId,
+      p_personas: personas,
+      p_cliente: {
+        tipo_documento: c.tipo_documento,
+        dni: c.dni,
+        apellidos: c.apellidos,
+        nombres: c.nombres,
+        fecha_nacimiento: c.fecha_nacimiento || null,
+        correo: c.correo,
+        telefono: c.telefono,
+        nacionalidad: c.nacionalidad || (c.tipo_documento === 'DNI' ? 'PER' : null),
+      },
+      p_usuario: req.usuario.id,
+      p_minutos: MINUTOS_APARTADO,
+    });
+
+    if (error) {
+      const m = error.message || '';
+      if (m.includes('CUPOS_INSUFICIENTES')) {
+        return fallo(res, 409, 'La cantidad de pasajeros excede la capacidad disponible del paquete.');
+      }
+      if (m.includes('SALIDA_NO_DISPONIBLE')) return fallo(res, 409, 'La salida no está disponible.');
+      if (m.includes('DATOS_INVALIDOS') || error.code === '23514') {
+        return fallo(res, 400, 'Los datos de la reserva no son válidos.');
+      }
+      throw error;
+    }
+
+    res.status(201).json(data);
+  } catch (e) {
+    next(e);
+  }
+});
+
+// POST /api/portal-cliente/reservas/:id/completar
+// { modo_titular: 'perfil'|'manual', cliente, acompanantes, declaracion_jurada: true }
+router.post('/reservas/:id/completar', async (req, res, next) => {
+  try {
+    const id = idValido(req.params.id);
+    if (!id) return fallo(res, 400, 'El número de reserva no es válido.');
+
+    const usuario = await obtenerClienteUsuario(req);
+    if (!usuario) return fallo(res, 400, 'No se encontraron los datos de tu perfil.');
 
     const body = req.body || {};
 
     // Términos y condiciones: los datos ingresados tienen carácter de declaración jurada.
-    // Se acepta al confirmar la reserva (queda registrada con la fecha de creación de la reserva).
+    // Se acepta al confirmar la reserva (queda registrada con la fecha de la reserva).
     if (body.declaracion_jurada !== true) {
       return fallo(res, 400, 'Debes declarar que los datos ingresados son verdaderos.');
     }
 
-    const modoManual =
-      body.modo_titular === 'manual' ||
-      body.usar_datos_cuenta === false;
-
-    let titular;
-
-    if (modoManual) {
-      const c = body.cliente || {};
-
-      titular = {
-        tipo_documento: txt(c.tipo_documento).toUpperCase(),
-        nro_documento: txt(
-          c.nro_documento ?? c.numero_documento ?? c.dni
-        ).toUpperCase(),
-        apellidos: txt(c.apellidos),
-        nombres: txt(c.nombres),
-        fecha_nacimiento: txt(c.fecha_nacimiento),
-        correo: txt(c.correo),
-        telefono: txt(c.telefono),
-        mrz: Array.isArray(c.mrz) ? c.mrz : undefined, // solo pasaporte
-      };
-    } else {
-      const cliente = usuario.cliente;
-
-      titular = {
-        tipo_documento: cliente.tipo_documento,
-        nro_documento: cliente.dni,
-        apellidos: cliente.apellidos,
-        nombres: cliente.nombres,
-        fecha_nacimiento:
-          txt(body.cliente?.fecha_nacimiento) ||
-          cliente.fecha_nacimiento,
-        correo: cliente.correo,
-        telefono: cliente.telefono,
-      };
-    }
-
-    if (
-      !titular.tipo_documento ||
-      !titular.nro_documento ||
-      !titular.nombres ||
-      !titular.apellidos ||
-      !titular.fecha_nacimiento ||
-      !titular.correo ||
-      !titular.telefono
-    ) {
-      return fallo(
-        res,
-        400,
-        modoManual
-          ? 'Completa todos los datos del titular.'
-          : 'Completa tus datos personales antes de reservar.'
-      );
-    }
-
-    const salidaId = idValido(body.salida_id);
-
-    if (!salidaId) {
-      return fallo(res, 400, 'La salida no es válida.');
-    }
-
-    const { data: salida, error: errSalida } = await supabase
-      .from('salidas')
-      .select('id, fecha_inicio_viaje')
-      .eq('id', salidaId)
+    // El borrador debe ser de esta cuenta y seguir vigente (la base lo vuelve a comprobar con la fila bloqueada)
+    const { data: borrador, error: errBorrador } = await supabase
+      .from('reservas')
+      .select('id, estado, num_personas, expira_en, salidas(fecha_inicio_viaje)')
+      .eq('id', id)
+      .eq('creado_por', req.usuario.id)
       .maybeSingle();
+    if (errBorrador) throw errBorrador;
+    if (!borrador) return fallo(res, 404, 'La reserva no existe o no te pertenece.');
+    if (borrador.estado === 'Vencida' || (borrador.estado === 'Borrador' && vencida(borrador.expira_en))) {
+      return fallo(res, 410, MSG_TIEMPO_AGOTADO);
+    }
+    if (borrador.estado !== 'Borrador') return fallo(res, 409, 'Esta reserva ya fue completada.');
 
-    if (errSalida) throw errSalida;
+    const t = armarTitular(usuario, body);
+    if (t.error) return fallo(res, 400, t.error);
 
-    if (!salida) {
-      return fallo(res, 404, 'La salida no existe.');
+    const acompanantes = Array.isArray(body.acompanantes) ? body.acompanantes : [];
+    const n = borrador.num_personas;
+    if (1 + acompanantes.length !== n) {
+      return fallo(res, 400,
+        `Indicaste ${plural(n, 'persona', 'personas')}: completa los datos de ${plural(n - 1, 'acompañante', 'acompañantes')}.`);
     }
 
-    const datos = {
-      cliente: titular,
-      acompanantes: body.acompanantes,
-    };
-
-    const v = validarReserva(datos, salida.fecha_inicio_viaje, {
+    const v = validarReserva({ cliente: t.titular, acompanantes }, borrador.salidas.fecha_inicio_viaje, {
       telefonoValido,
       // Con los datos de la cuenta, el pasaporte ya se validó con la MRZ al registrarse.
-      titularSinMrz: !modoManual,
+      titularSinMrz: !t.modoManual,
     });
-
-    if (v.error) {
-      return fallo(res, 400, v.error);
-    }
+    if (v.error) return fallo(res, 400, v.error);
 
     // Que cada documento corresponda a ese nombre (DNI -> RENIEC, CE -> Migraciones,
     // pasaporte -> MRZ). El titular con los datos de la cuenta ya se verificó al registrarse.
-    const identidad = await verificarPasajeros(v, { verificarTitular: modoManual });
-    if (identidad.error) {
-      return fallo(res, identidad.estado, identidad.error);
-    }
+    const identidad = await verificarPasajeros(v, { verificarTitular: t.modoManual });
+    if (identidad.error) return fallo(res, identidad.estado, identidad.error);
 
-    const { data, error } = await supabase.rpc('crear_reserva', {
-      p_salida_id: salidaId,
+    const { data, error } = await supabase.rpc('completar_reserva', {
+      p_reserva_id: id,
+      p_usuario: req.usuario.id,
       p_cliente: paraRpc(v.cliente),
       p_acompanantes: v.acompanantes.map(paraRpc),
-      p_creado_por: req.usuario.id,
+      p_minutos_pago: MINUTOS_PAGO,
     });
 
     if (error) {
-      const mensaje = error.message || '';
-
-      if (mensaje.includes('CUPOS_INSUFICIENTES')) {
-        return fallo(res, 409, 'La cantidad de pasajeros excede la capacidad disponible del paquete.');
+      const m = error.message || '';
+      if (m.includes('RESERVA_VENCIDA')) return fallo(res, 410, MSG_TIEMPO_AGOTADO);
+      if (m.includes('RESERVA_NO_ENCONTRADA')) return fallo(res, 404, 'La reserva no existe o no te pertenece.');
+      if (m.includes('RESERVA_NO_BORRADOR')) return fallo(res, 409, 'Esta reserva ya fue completada.');
+      if (m.includes('PERSONAS_NO_COINCIDEN')) {
+        return fallo(res, 400, 'La cantidad de acompañantes no coincide con las personas indicadas.');
       }
-
-      if (mensaje.includes('SALIDA_NO_DISPONIBLE')) {
-        return fallo(res, 409, 'La salida no está disponible.');
-      }
-
-      if (mensaje.includes('CLIENTE_MENOR')) {
-        return fallo(
-          res,
-          400,
-          'Debes ser mayor de edad para realizar la reserva.'
-        );
-      }
-
-      console.error('Error SQL al crear reserva:', {
-        code: error.code,
-        message: error.message,
-        details: error.details,
-        hint: error.hint,
-      });
-
-      if (
-        mensaje.includes('DATOS_INVALIDOS') ||
-        error.code === '23514'
-      ) {
+      if (m.includes('CLIENTE_MENOR')) return fallo(res, 400, 'Debes ser mayor de edad para realizar la reserva.');
+      console.error('Error SQL al completar reserva:', { code: error.code, message: error.message, details: error.details });
+      if (m.includes('DATOS_INVALIDOS') || error.code === '23514') {
         return fallo(res, 400, 'Los datos de la reserva no son válidos.');
       }
-
       throw error;
     }
 

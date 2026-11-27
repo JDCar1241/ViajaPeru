@@ -7,6 +7,7 @@ import { esCorreo } from '../../utils/validaciones.js';
 import './MiReserva.css';
 import Confirmar from '../../componentes/Confirmar.jsx';
 import Icono from '../../componentes/Icono.jsx';
+import CuentaRegresiva from '../../componentes/CuentaRegresiva.jsx';
 
 function moneda(valor, tipo = 'PEN') {
   return Number(valor || 0).toLocaleString('es-PE', {
@@ -43,6 +44,7 @@ function estadoTexto(estado) {
     confirmado: 'Confirmada',
     cancelada: 'Cancelada',
     anulada: 'Anulada',
+    vencida: 'Vencida (sin pagar a tiempo)',
   };
 
   return estados[String(estado || '').toLowerCase()] || estado || 'Sin estado';
@@ -209,6 +211,7 @@ export default function MiReserva() {
   const pendiente = estadoActual === 'pendiente';
   const pagada = estadoActual === 'pagada';
   const cancelada = estadoActual === 'cancelada';
+  const vencidaReserva = estadoActual === 'vencida';
 
   function seleccionarMetodo(metodo) {
     setMetodoPago(metodo);
@@ -456,6 +459,17 @@ export default function MiReserva() {
                 {estadoTexto(reserva.estado)}
               </span>
             </header>
+
+            {/* Compra online: plazo para pagar (al vencer, los cupos vuelven a la salida) */}
+            {pendiente && reserva.expira_en && (
+              <CuentaRegresiva hasta={reserva.expira_en} texto="Tienes tiempo para pagar" onVencer={cargarReserva} />
+            )}
+            {vencidaReserva && (
+              <p className="vp-alerta" role="status">
+                El plazo para pagar esta reserva venció y sus cupos se liberaron. Si aún quieres viajar,
+                vuelve a reservar desde la página del paquete.
+              </p>
+            )}
 
             <section className="mr-destino">
               {fotoPaquete ? (
