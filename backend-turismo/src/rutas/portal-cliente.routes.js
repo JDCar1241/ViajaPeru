@@ -15,7 +15,7 @@ import {
 import { generarPdf } from '../servicios/comprobante.pdf.js';
 import { liberarVencidas, vencida, MINUTOS_APARTADO, MINUTOS_PAGO } from '../servicios/vencimientos.js';
 import { esUsd, tipoCambioDe, aCentimosUsd } from '../utils/moneda.js';
-import { representacion } from '../servicios/representacion-comprobante.js';
+import { comprobanteCompletoDeReserva } from '../servicios/representacion-comprobante.js';
 import { validarComprador } from './comprobantes.routes.js';
 import { consultarRuc, RE_RUC } from './consultas.routes.js';
 import { ErrorServicio } from '../servicios/factiliza.js';
@@ -703,7 +703,8 @@ router.post('/reservas/:id/pagar', limitarPago, async (req, res, next) => {
     }
 
     // HU-007: boleta a nombre del titular o la factura que pidió el cliente, enviada por correo con el PDF.
-    const comprobante = await emitirYEnviarComprobante(id, req.usuario.id, elegido);
+    // Compra online: el emisor es ViajaPerú, no hay persona que lo emita (el cliente es el adquirente)
+    const comprobante = await emitirYEnviarComprobante(id, null, elegido);
     const nombreComp = elegido ? 'factura' : 'boleta';
 
     return res.status(201).json({
@@ -1284,17 +1285,13 @@ router.get('/reservas/:id/comprobante', async (req, res, next) => {
       return fallo(res, 404, propiedad.error);
     }
 
-    const { data, error } = await supabase.rpc('comprobante_de_reserva', {
-      p_reserva_id: id,
-    });
+    const comprobante = await comprobanteCompletoDeReserva(id);
 
-    if (error) throw error;
-
-    if (!data) {
+    if (!comprobante) {
       return fallo(res, 404, 'Esta reserva todavía no tiene comprobante.');
     }
 
-    res.json({ ...data, representacion: representacion(data) });
+    res.json(comprobante);
   } catch (e) {
     next(e);
   }

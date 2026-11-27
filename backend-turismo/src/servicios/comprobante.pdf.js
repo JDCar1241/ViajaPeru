@@ -32,6 +32,9 @@ export function generarPdf(c) {
     doc.font('Helvetica-Bold').fontSize(9).fillColor(NAVY).text(r.emisor.razon_social, X, doc.y + 2, { width: 310 });
     doc.font('Helvetica').fontSize(9).fillColor(GRIS);
     doc.text(`Domicilio fiscal: ${r.emisor.domicilio_fiscal || 'no configurado'}`, X, doc.y + 2, { width: 310 });
+    if (r.emisor.establecimiento && r.emisor.establecimiento !== r.emisor.domicilio_fiscal) {
+      doc.text(`Establecimiento (punto de emisión): ${r.emisor.establecimiento}`, X, doc.y + 2, { width: 310 });
+    }
     const yEmisor = doc.y;
 
     // ---- Recuadro: RUC, denominación, serie y número ----
@@ -80,26 +83,27 @@ export function generarPdf(c) {
     y = doc.y + 16;
 
     // ---- Detalle (cantidad, unidad, descripción, valor y precio unitario, importe) ----
-    const COL = { cant: X + 6, um: X + 42, desc: X + 92, vu: X + 300, pu: X + 368, imp: X + 432 };
+    // Columnas numéricas alineadas a la derecha; la última es más ancha para "VALOR DE VENTA" (factura)
+    const COL = { cant: X + 6, um: X + 40, desc: X + 80, vu: X + 268, pu: X + 334, imp: X + 400 };
     doc.rect(X, y, ANCHO, 22).fill(SKY);
     doc.font('Helvetica-Bold').fontSize(8).fillColor(NAVY);
     doc.text('CANT.', COL.cant, y + 7).text('U.M.', COL.um, y + 7).text('DESCRIPCIÓN', COL.desc, y + 7)
       .text('V. UNIT.', COL.vu, y + 7, { width: 62, align: 'right' })
       .text('P. UNIT.', COL.pu, y + 7, { width: 58, align: 'right' })
-      .text('IMPORTE', COL.imp, y + 7, { width: 61, align: 'right' });
+      .text(r.columna_importe.toUpperCase(), COL.imp, y + 7, { width: 93, align: 'right' });
     y += 22;
     for (const it of r.items) {
       doc.font('Helvetica').fontSize(9).fillColor(NAVY);
       doc.text(String(it.cantidad), COL.cant, y + 7).text(`${it.unidad}`, COL.um, y + 7);
-      doc.text(it.descripcion, COL.desc, y + 7, { width: 200 });
+      doc.text(it.descripcion, COL.desc, y + 7, { width: 180 });
       const alto = Math.max(doc.y - y, 22);
       doc.text(num(it.valor_unitario), COL.vu, y + 7, { width: 62, align: 'right' })
         .text(num(it.precio_unitario), COL.pu, y + 7, { width: 58, align: 'right' })
-        .text(num(it.importe), COL.imp, y + 7, { width: 61, align: 'right' });
+        .text(num(r.tipo === 'Factura' ? it.valor_venta : it.importe), COL.imp, y + 7, { width: 93, align: 'right' });
       y += alto + 6;
       doc.moveTo(X, y).lineTo(X + ANCHO, y).lineWidth(0.5).strokeColor(LINEA).stroke();
     }
-    doc.font('Helvetica').fontSize(7.5).fillColor(GRIS).text('U.M.: ZZ = servicio. V. unit.: valor unitario sin IGV. P. unit.: precio unitario con IGV.', X, y + 4, { width: ANCHO });
+    doc.font('Helvetica').fontSize(7.5).fillColor(GRIS).text(`U.M.: ZZ = servicio. V. unit.: valor unitario sin IGV. P. unit.: precio unitario con IGV.${r.tipo === 'Factura' ? ' Valor de venta: sin IGV.' : ' Importe: con IGV.'}`, X, y + 4, { width: ANCHO });
     y = doc.y + 12;
 
     // ---- Pasajeros ----

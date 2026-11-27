@@ -1,15 +1,31 @@
 import { EMPRESA } from '../config/empresa.js';
+import { supabase } from '../config/supabase.js';
+
+// Comprobante de una reserva con TODO lo que se imprime. comprobante_de_reserva no devuelve
+// "detalle" (paquete, pasajeros, código) ni quién lo emitió: se lee con obtener_comprobante.
+// Devuelve null si la reserva no tiene comprobante.
+export async function comprobanteCompletoDeReserva(reservaId) {
+  const { data: resumen, error } = await supabase.rpc('comprobante_de_reserva', { p_reserva_id: reservaId });
+  if (error) throw error;
+  if (!resumen?.id) return null;
+  const { data: completo, error: e2 } = await supabase.rpc('obtener_comprobante', { p_id: resumen.id });
+  if (e2) throw e2;
+  if (!completo) return null;
+  return { ...completo, representacion: representacion(completo) };
+}
 
 // Representación de la boleta o factura: UN solo lugar que arma todos los datos que se imprimen
 // (PDF, correo, pantalla del personal y del cliente).
 //
 // Campos según el Reglamento de Comprobantes de Pago (R. de Superintendencia N.° 007-99/SUNAT, art. 8)
 // y las reglas de la representación impresa:
-//   Emisor:      apellidos y nombres o razón social, nombre comercial, RUC y domicilio fiscal
+//   Emisor:      apellidos y nombres o razón social, nombre comercial, RUC, domicilio fiscal y
+//                establecimiento donde está el punto de emisión (incisos 1.1 y 3.1)
 //   Documento:   denominación (BOLETA DE VENTA / FACTURA), serie y número correlativo, fecha de emisión
 //   Adquirente:  boleta -> nombre y documento (obligatorio si el total pasa de S/ 700);
 //                factura -> razón social, RUC y dirección
-//   Detalle:     cantidad, unidad de medida, descripción del servicio, valor y precio unitario
+//   Detalle:     cantidad, unidad de medida, descripción del servicio y precio unitario (1.9, 1.10);
+//                factura: valor de venta SIN tributos (1.11); boleta: importe de la venta (3.8)
 //   Totales:     valor de venta (operación gravada), IGV con su tasa (en la factura, siempre
 //                discriminado), importe total, importe en letras y moneda
 //   Factura:     forma de pago (Contado)
@@ -132,6 +148,8 @@ export function representacion(c) {
 
   return {
     titulo: esFactura ? 'FACTURA' : 'BOLETA DE VENTA',
+    // Última columna del detalle: factura -> valor de venta sin IGV; boleta -> importe de la venta
+    columna_importe: esFactura ? 'Valor de venta' : 'Importe',
     tipo: c.tipo,
     serie: c.serie,
     numero: numeroCompleto(c),
@@ -141,6 +159,8 @@ export function representacion(c) {
       nombre_comercial: EMPRESA.nombre,
       ruc: EMPRESA.ruc || null,
       domicilio_fiscal: EMPRESA.direccion || null,
+      // Punto de emisión: si no se configura otro, es el mismo domicilio fiscal (venta por la web)
+      establecimiento: EMPRESA.establecimiento || EMPRESA.direccion || null,
     },
     faltan_datos_emisor: faltan,
     adquirente: k
@@ -162,7 +182,8 @@ export function representacion(c) {
         descripcion,
         valor_unitario: redondear(valorVenta / cantidad),
         precio_unitario: redondear(total / cantidad),
-        importe: total,
+        valor_venta: valorVenta, // sin IGV (factura, inciso 1.11)
+        importe: total,          // con IGV (boleta, inciso 3.8)
       },
     ],
     pasajeros,

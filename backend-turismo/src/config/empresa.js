@@ -5,7 +5,8 @@
 //   EMPRESA_NOMBRE        Nombre comercial (ViajaPerú)
 //   EMPRESA_RAZON_SOCIAL  Razón social o, con RUC 10, tu nombre completo
 //   EMPRESA_RUC           11 dígitos (10... persona natural, 20... empresa)
-//   EMPRESA_DIRECCION     Dirección fiscal o del local
+//   EMPRESA_DIRECCION     Domicilio fiscal (tal como figura en la Ficha RUC)
+//   EMPRESA_ESTABLECIMIENTO  Dirección del establecimiento donde se emite (si es distinta del domicilio fiscal)
 //   EMPRESA_TELEFONO      Teléfono o WhatsApp de atención
 //   EMPRESA_CORREO        Correo público de atención (también recibe los reclamos)
 //   EMPRESA_HORARIO       Ej.: Lunes a viernes de 9:00 a 18:00
@@ -17,6 +18,7 @@ export const EMPRESA = {
   razon_social: v('EMPRESA_RAZON_SOCIAL') || v('EMPRESA_NOMBRE') || 'ViajaPerú',
   ruc: v('EMPRESA_RUC'),
   direccion: v('EMPRESA_DIRECCION'),
+  establecimiento: v('EMPRESA_ESTABLECIMIENTO'),
   telefono: v('EMPRESA_TELEFONO'),
   correo: v('EMPRESA_CORREO'),
   horario: v('EMPRESA_HORARIO'),

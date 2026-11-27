@@ -1,5 +1,5 @@
 import { Router } from 'express';
-import { representacion } from '../servicios/representacion-comprobante.js';
+import { representacion, comprobanteCompletoDeReserva } from '../servicios/representacion-comprobante.js';
 import { supabase } from '../config/supabase.js';
 import { requiereSesion, fallo } from '../middlewares/auth.middleware.js';
 import { generarPdf, numeroCompleto } from '../servicios/comprobante.pdf.js';
@@ -74,10 +74,9 @@ router.get('/reservas/:id/comprobante', requiereSesion(ROLES), async (req, res, 
   try {
     const id = idValido(req.params.id);
     if (!id) return fallo(res, 400, 'La reserva no es válida.');
-    const { data, error } = await supabase.rpc('comprobante_de_reserva', { p_reserva_id: id });
-    if (error) throw error;
-    if (!data) return fallo(res, 404, 'Esta reserva aún no tiene comprobante.');
-    res.json({ ...data, representacion: representacion(data) });
+    const comprobante = await comprobanteCompletoDeReserva(id);
+    if (!comprobante) return fallo(res, 404, 'Esta reserva aún no tiene comprobante.');
+    res.json(comprobante);
   } catch (e) { next(e); }
 });
 

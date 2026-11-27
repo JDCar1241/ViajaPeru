@@ -19,6 +19,9 @@ export default function VistaComprobante({ r, totalSoles }) {
           <strong className="vc-marca">{r.emisor.nombre_comercial}</strong>
           <span className="vc-razon">{r.emisor.razon_social}</span>
           <span>Domicilio fiscal: {r.emisor.domicilio_fiscal || 'no configurado'}</span>
+          {r.emisor.establecimiento && r.emisor.establecimiento !== r.emisor.domicilio_fiscal && (
+            <span>Establecimiento (punto de emisión): {r.emisor.establecimiento}</span>
+          )}
         </div>
         <div className="vc-recuadro">
           <span>R.U.C. {r.emisor.ruc || '— (no configurado)'}</span>
@@ -57,7 +60,7 @@ export default function VistaComprobante({ r, totalSoles }) {
           <thead>
             <tr>
               <th>Cant.</th><th>U.M.</th><th>Descripción</th>
-              <th className="num">V. unit.</th><th className="num">P. unit.</th><th className="num">Importe</th>
+              <th className="num">V. unit.</th><th className="num">P. unit.</th><th className="num">{r.columna_importe || 'Importe'}</th>
             </tr>
           </thead>
           <tbody>
@@ -68,13 +71,16 @@ export default function VistaComprobante({ r, totalSoles }) {
                 <td>{it.descripcion}</td>
                 <td className="num">{num(it.valor_unitario)}</td>
                 <td className="num">{num(it.precio_unitario)}</td>
-                <td className="num">{num(it.importe)}</td>
+                <td className="num">{num(r.tipo === 'Factura' ? it.valor_venta : it.importe)}</td>
               </tr>
             ))}
           </tbody>
         </table>
       </div>
-      <p className="vc-nota">U.M. ZZ = servicio · V. unit.: valor unitario sin IGV · P. unit.: precio unitario con IGV.</p>
+      <p className="vc-nota">
+        U.M. ZZ = servicio · V. unit.: valor unitario sin IGV · P. unit.: precio unitario con IGV
+        {r.tipo === 'Factura' ? ' · Valor de venta: sin IGV.' : ' · Importe: con IGV.'}
+      </p>
 
       <section className="vc-pasajeros">
         <h3>Pasajeros</h3>
