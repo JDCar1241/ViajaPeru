@@ -34,8 +34,6 @@
 
 .rg-nota{margin:0;padding:12px 16px;border-radius:12px;background:var(--sky);font-size:14px;color:var(--navy)}
 .rg-ayuda{margin:0;font-size:13px;color:var(--muted)}
-.rg-leido{display:grid;gap:2px;padding:14px 16px;border:1px solid var(--ok-bg);border-radius:12px;background:var(--ok-bg);font-size:14px;color:var(--navy)}
-.rg-leido strong{color:var(--ok)}
 .rg-reglas{display:flex;flex-wrap:wrap;gap:6px 16px;margin:0;padding:0;list-style:none;font-size:13px;color:var(--muted)}
 .rg-reglas li::before{content:"○ "}
 .rg-reglas li.ok{color:var(--ok)}

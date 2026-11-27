@@ -50,6 +50,7 @@ export async function verificarDocumento(doc) {
         apellido_paterno: d.apellidos,
         apellido_materno: null,
         fecha_nacimiento: d.fecha_nacimiento,
+        nacionalidad: d.nacionalidad || null, // código de 3 letras de la MRZ ("PER", "USA", "D"…)
       },
     };
   }

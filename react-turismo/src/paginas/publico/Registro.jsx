@@ -6,7 +6,8 @@ import Telefono from '../../componentes/Telefono.jsx';
 import { telefonoValido, separarTelefono, textoLargo, PAIS_POR_DEFECTO } from '../../utils/paises.js';
 import { esCorreo, noVacio, criteriosClave, claveValida, CLAVE_MAX } from '../../utils/validaciones.js';
 import { pedir, ultima } from '../../servicios/api.js';
-import { TIPOS, validarDocumento, limpiarDocumento } from '../../utils/documentos.js';
+import { TIPOS, validarDocumento, limpiarDocumento, validarNacimiento } from '../../utils/documentos.js';
+import { nombreNacionalidad } from '../../utils/nacionalidades.js';
 import { analizarMrz, limpiarMrz } from '../../utils/mrz.js';
 
 // Teléfono con código de país: lista en utils/paises.js (idéntica a la del Backend)
@@ -19,8 +20,14 @@ const TIPOS_UI = TIPOS.map((t) => (typeof t === 'string'
 const fechaLarga = (iso) => new Date(iso + 'T00:00:00Z').toLocaleDateString('es-PE', { day: 'numeric', month: 'long', year: 'numeric', timeZone: 'UTC' });
 const NOMBRE_DOC = { DNI: 'DNI', CE: 'carné de extranjería', PASAPORTE: 'pasaporte' };
 
+// Hoy (hora local) "YYYY-MM-DD": máximo del calendario de fecha de nacimiento
+const hoyISO = () => {
+  const d = new Date();
+  return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}-${String(d.getDate()).padStart(2, '0')}`;
+};
+
 const inicial = {
-  tipo: 'DNI', numero: '', nombres: '', paterno: '', materno: '', mrz1: '', mrz2: '',
+  tipo: 'DNI', numero: '', nombres: '', paterno: '', materno: '', nacimiento: '', mrz1: '', mrz2: '',
   correo: '', telefono: '', clave: '', clave2: '', // telefono completo: "+51987654321"
 };
 
@@ -33,10 +40,11 @@ export default function Registro() {
   const esPasaporte = f.tipo === 'PASAPORTE';
   const esDni = f.tipo === 'DNI';
   const mrz = esPasaporte ? analizarMrz(f.mrz1, f.mrz2) : null; // se recalcula en cada tecla
+  const dp = mrz?.ok ? mrz.datos : null; // datos del pasaporte leídos de la MRZ
 
   const set = (k) => (e) => setF({ ...f, [k]: e.target.value });
   const cambiarTipo = (valor) => {
-    setF({ ...f, tipo: valor, numero: '', nombres: '', paterno: '', materno: '', mrz1: '', mrz2: '' });
+    setF({ ...f, tipo: valor, numero: '', nombres: '', paterno: '', materno: '', nacimiento: '', mrz1: '', mrz2: '' });
     setErr({}); setFallo('');
   };
 
@@ -56,6 +64,9 @@ export default function Registro() {
       if (!noVacio(f.nombres)) n.nombres = 'Escribe tus nombres.';
       if (!noVacio(f.paterno)) n.paterno = 'Escribe tu apellido paterno.';
       if (esDni && !noVacio(f.materno)) n.materno = 'Escribe tu apellido materno.';
+      // Declaración jurada: solo se revisa el formato de la fecha (que exista y no sea futura)
+      const nac = validarNacimiento(f.nacimiento, new Date());
+      if (nac) n.nacimiento = nac;
     }
     if (!esCorreo(f.correo)) n.correo = 'Escribe un correo válido.';
     if (!telefonoValido(f.telefono)) {
@@ -85,6 +96,7 @@ export default function Registro() {
             nombres: f.nombres.trim(),
             apellido_paterno: f.paterno.trim(),
             apellido_materno: f.materno.trim(),
+            fecha_nacimiento: f.nacimiento,
           };
       await pedir('/clientes/registro', {
         method: 'POST',
@@ -143,6 +155,8 @@ export default function Registro() {
                   </div>
                   <Campo etiqueta="Apellido paterno" value={f.paterno} onChange={set('paterno')} error={err.paterno} />
                   <Campo etiqueta={esDni ? 'Apellido materno' : 'Apellido materno (si tienes)'} value={f.materno} onChange={set('materno')} error={err.materno} />
+                  <Campo etiqueta="Fecha de nacimiento" type="date" autoComplete="bday" max={hoyISO()}
+                    value={f.nacimiento} onChange={set('nacimiento')} error={err.nacimiento} />
                 </div>
                 <p className="rg-nota">
                   {esDni
@@ -172,14 +186,20 @@ export default function Registro() {
                   <p className="rg-ayuda" role="status">Cada línea debe tener 44 caracteres (llevas {f.mrz1.length} y {f.mrz2.length}).</p>
                 )}
                 {mrz && !mrz.incompleto && !mrz.ok && mrz.errores.map((m) => <p key={m} className="rg-alerta" role="alert">{m}</p>)}
-                {mrz?.ok && (
-                  <div className="rg-leido" role="status">
-                    <strong>Datos leídos de tu pasaporte</strong>
-                    <span>Pasaporte N.º {mrz.datos.numero} · {mrz.datos.nacionalidad}</span>
-                    <span>{mrz.datos.nombres} {mrz.datos.apellidos}</span>
-                    <span>Nacimiento: {fechaLarga(mrz.datos.fecha_nacimiento)} · Vence: {fechaLarga(mrz.datos.vence)}</span>
+                {/* Datos del pasaporte: se completan solos desde la MRZ (no se escriben a mano) */}
+                <div className="rg-grid" aria-live="polite">
+                  <Campo etiqueta="Número de pasaporte" value={dp?.numero || ''} disabled readOnly />
+                  <Campo etiqueta="Nacionalidad" value={dp ? nombreNacionalidad(dp.nacionalidad) : ''} disabled readOnly />
+                  <div className="full">
+                    <Campo etiqueta="Apellidos (tal como figuran en el pasaporte)" value={dp?.apellidos || ''} disabled readOnly />
                   </div>
-                )}
+                  <div className="full">
+                    <Campo etiqueta="Nombres (tal como figuran en el pasaporte)" value={dp?.nombres || ''} disabled readOnly />
+                  </div>
+                  <Campo etiqueta="Fecha de nacimiento" value={dp ? fechaLarga(dp.fecha_nacimiento) : ''} disabled readOnly />
+                  <Campo etiqueta="Fecha de vencimiento" value={dp ? fechaLarga(dp.vence) : ''} disabled readOnly />
+                </div>
+                {!dp && <p className="rg-ayuda">Estos campos se completan solos cuando la MRZ es correcta.</p>}
                 <p className="rg-ayuda">Comprobamos que los dígitos de control de la MRZ cuadren. Esto detecta errores al escribirla; no certifica que el documento sea auténtico.</p>
               </>
             )}

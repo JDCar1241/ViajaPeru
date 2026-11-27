@@ -75,7 +75,7 @@ async function obtenerClienteUsuario(req) {
     .from('perfiles')
     .select(`
       id, nombre, rol, correo, tipo_documento, numero_documento,
-      nombres, apellido_paterno, apellido_materno, telefono, fecha_nacimiento
+      nombres, apellido_paterno, apellido_materno, telefono, fecha_nacimiento, nacionalidad
     `)
     .eq('id', req.usuario.id)
     .eq('rol', 'Cliente')
@@ -212,6 +212,7 @@ router.get('/perfil', async (req, res, next) => {
       numero_documento: perfil.numero_documento,
       telefono: perfil.telefono,
       fecha_nacimiento: perfil.fecha_nacimiento,
+      nacionalidad: perfil.nacionalidad,
     });
   } catch (e) {
     next(e);

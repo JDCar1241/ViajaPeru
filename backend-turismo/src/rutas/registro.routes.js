@@ -2,13 +2,23 @@ import { Router } from 'express';
 import { supabase, clienteAnon } from '../config/supabase.js';
 import { fallo } from '../middlewares/auth.middleware.js';
 import { verificarDocumento, ErrorServicio } from '../servicios/verificacion-documentos.js';
-import { DOCUMENTOS, esCorreo, claveSegura, MSG_CLAVE, telefonoInternacionalValido } from '../utils/comunes.js';
+import { DOCUMENTOS, esCorreo, claveSegura, MSG_CLAVE, telefonoInternacionalValido, esFechaISO } from '../utils/comunes.js';
 import { crearLimitador } from '../middlewares/limitar.js';
 
 const router = Router();
 
 const TIPOS = Object.keys(DOCUMENTOS);
 const MSG_CORREO = 'El correo electrónico ya se encuentra registrado por otro usuario.';
+
+// Fecha de nacimiento (DNI / CE). Los datos tienen carácter de declaración jurada (Términos y
+// condiciones), así que solo se revisa el formato: fecha real, no futura y edad razonable.
+function nacimientoValido(v) {
+  if (!esFechaISO(v)) return false;
+  const d = new Date(`${v}T00:00:00Z`);
+  const minimo = new Date();
+  minimo.setUTCFullYear(minimo.getUTCFullYear() - 110);
+  return d <= new Date() && d >= minimo;
+}
 
 // Este endpoint es público y cada intento puede gastar consultas y enviar un correo.
 // En Render hace falta app.set('trust proxy', 1) en index.js para que req.ip sea la del visitante.
@@ -32,7 +42,7 @@ async function duplicado(tipo, numero, correo) {
 }
 
 // POST /api/clientes/registro
-// DNI / CE:   { tipo_documento, numero_documento, nombres, apellido_paterno, apellido_materno, correo, telefono, clave }
+// DNI / CE:   { tipo_documento, numero_documento, nombres, apellido_paterno, apellido_materno, fecha_nacimiento, correo, telefono, clave }
 // PASAPORTE:  { tipo_documento: 'PASAPORTE', mrz: [linea1, linea2], correo, telefono, clave }
 // El correo de confirmación lo envía Supabase Auth; hasta confirmarlo no se puede iniciar sesión.
 router.post('/registro', limitar, async (req, res, next) => {
@@ -59,6 +69,7 @@ router.post('/registro', limitar, async (req, res, next) => {
       const materno = String(b.apellido_materno || '').trim();
       if (!nombres || !paterno) return fallo(res, 400, 'Escribe tus nombres y tu apellido paterno.');
       if (tipo === 'DNI' && !materno) return fallo(res, 400, 'Escribe tu apellido materno.');
+      if (!nacimientoValido(b.fecha_nacimiento)) return fallo(res, 400, 'Escribe una fecha de nacimiento válida.');
       doc = { tipo_documento: tipo, numero_documento: numero, nombres, apellido_paterno: paterno, apellido_materno: materno };
     }
 
@@ -79,6 +90,10 @@ router.post('/registro', limitar, async (req, res, next) => {
     }
     if (!v.ok) return fallo(res, 422, v.motivo);
     const p = v.persona;
+    // DNI / CE: RENIEC y Migraciones no devuelven la fecha; se usa la que escribió la persona.
+    // Pasaporte: fecha y nacionalidad salen de la MRZ. El DNI es peruano.
+    const fechaNacimiento = tipo === 'PASAPORTE' ? p.fecha_nacimiento : b.fecha_nacimiento;
+    const nacionalidad = tipo === 'PASAPORTE' ? p.nacionalidad : tipo === 'DNI' ? 'PER' : null;
 
     // En el pasaporte el número sale de la MRZ, así que el duplicado se revisa recién ahora
     if (tipo === 'PASAPORTE') {
@@ -122,7 +137,8 @@ router.post('/registro', limitar, async (req, res, next) => {
       apellido_paterno: p.apellido_paterno,
       apellido_materno: p.apellido_materno,
       telefono: b.telefono,
-      fecha_nacimiento: p.fecha_nacimiento,
+      fecha_nacimiento: fechaNacimiento,
+      nacionalidad,
     }, { onConflict: 'id' });
     if (ePerfil) {
       await supabase.auth.admin.deleteUser(usuario.id).catch(() => {});

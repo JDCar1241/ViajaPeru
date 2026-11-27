@@ -1,10 +1,13 @@
 import { useCallback, useEffect, useState } from 'react';
 import { pedir } from '../../servicios/api.js';
 import { useSesion } from '../../servicios/auth.js';
+import { nombreNacionalidad } from '../../utils/nacionalidades.js';
 
 // Datos de la cuenta del cliente (solo lectura). Misma estructura que el resto de páginas:
 // cabecera + tarjeta con los datos + acciones.
 const NOMBRES_DOC = { DNI: 'DNI', CE: 'Carné de extranjería', PASAPORTE: 'Pasaporte' };
+const fechaLarga = (iso) =>
+  new Date(String(iso).slice(0, 10) + 'T00:00:00Z').toLocaleDateString('es-PE', { day: 'numeric', month: 'long', year: 'numeric', timeZone: 'UTC' });
 
 export default function MiCuenta() {
   const sesion = useSesion();
@@ -57,6 +60,8 @@ export default function MiCuenta() {
     ? [
         ['Nombre completo', nombre],
         ['Documento', perfil.numero_documento ? `${NOMBRES_DOC[tipo] || tipo || 'Documento'} ${perfil.numero_documento}` : ''],
+        ['Fecha de nacimiento', perfil.fecha_nacimiento ? fechaLarga(perfil.fecha_nacimiento) : ''],
+        ['Nacionalidad', nombreNacionalidad(perfil.nacionalidad)],
         ['Correo electrónico', perfil.correo],
         ['Teléfono', perfil.telefono],
       ]
