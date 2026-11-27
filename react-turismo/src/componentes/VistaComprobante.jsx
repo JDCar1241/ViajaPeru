@@ -1,7 +1,7 @@
 import './vista-comprobante.css';
 
-// Boleta o factura en pantalla. Recibe la "representacion" que arma el Backend
-// (servicios/representacion-comprobante.js): los mismos datos que el PDF.
+// Boleta o factura en pantalla, con el mismo formato que el PDF (representación impresa de SUNAT).
+// Recibe la "representacion" que arma el Backend (servicios/representacion-comprobante.js).
 const SIMBOLO = { PEN: 'S/', USD: 'US$' };
 const num = (n) => Number(n || 0).toLocaleString('es-PE', { minimumFractionDigits: 2, maximumFractionDigits: 2 });
 const fecha = (v) =>
@@ -11,22 +11,31 @@ export default function VistaComprobante({ r, totalSoles }) {
   if (!r) return null;
   const s = SIMBOLO[r.moneda?.codigo] || 'S/';
   const k = r.adquirente;
+  const esFactura = r.tipo === 'Factura';
+  const t = r.totales;
 
   return (
     <article className="vc">
       <header className="vc-cabecera">
-        <div>
+        <div className="vc-emisor">
           <strong className="vc-marca">{r.emisor.nombre_comercial}</strong>
           <span className="vc-razon">{r.emisor.razon_social}</span>
           <span>Domicilio fiscal: {r.emisor.domicilio_fiscal || 'no configurado'}</span>
           {r.emisor.establecimiento && r.emisor.establecimiento !== r.emisor.domicilio_fiscal && (
-            <span>Establecimiento (punto de emisión): {r.emisor.establecimiento}</span>
+            <span>Establecimiento: {r.emisor.establecimiento}</span>
+          )}
+          {(r.emisor.telefono || r.emisor.correo) && (
+            <span>
+              {r.emisor.telefono && <>Teléfono: {r.emisor.telefono}</>}
+              {r.emisor.telefono && r.emisor.correo && ' · '}
+              {r.emisor.correo && <>Correo: {r.emisor.correo}</>}
+            </span>
           )}
         </div>
         <div className="vc-recuadro">
-          <span>R.U.C. {r.emisor.ruc || '— (no configurado)'}</span>
+          <span>R.U.C. N° {r.emisor.ruc || '—'}</span>
           <strong>{r.titulo}</strong>
-          <b>{r.numero}</b>
+          <b>N° {r.numero}</b>
         </div>
       </header>
 
@@ -34,68 +43,67 @@ export default function VistaComprobante({ r, totalSoles }) {
         <p className="vc-aviso" role="status">Falta configurar: {r.faltan_datos_emisor.join(', ')}.</p>
       )}
 
-      <dl className="vc-datos">
-        <div><dt>Fecha de emisión</dt><dd>{fecha(r.fecha_emision)}</dd></div>
-        <div><dt>Moneda</dt><dd>{r.moneda.nombre} ({r.moneda.codigo})</dd></div>
-        {r.forma_pago && <div><dt>Forma de pago</dt><dd>{r.forma_pago}</dd></div>}
-        {r.tipo_cambio && <div><dt>Tipo de cambio</dt><dd>S/ {Number(r.tipo_cambio).toFixed(3)}</dd></div>}
-        <div><dt>Código de reserva</dt><dd>{r.codigo_reserva || '—'}</dd></div>
-      </dl>
-
-      <section className="vc-adquirente">
-        <h3>{r.tipo === 'Factura' ? 'Adquirente (señor(es))' : 'Adquirente'}</h3>
-        {k ? (
-          <>
-            <p><strong>{k.nombre}</strong></p>
-            <p>{k.tipo_documento} N.° {k.numero_documento}</p>
-            {k.direccion && <p>Dirección: {k.direccion}</p>}
-          </>
-        ) : (
-          <p>Cliente varios (boleta sin identificar, hasta S/ 700)</p>
-        )}
-      </section>
+      <div className="vc-bloque">
+        <dl>
+          <div><dt>Fecha de emisión:</dt><dd>{fecha(r.fecha_emision)}</dd></div>
+          <div><dt>Señor(es):</dt><dd>{k ? k.nombre : 'Cliente varios'}</dd></div>
+          <div><dt>{k ? (k.tipo_documento === 'RUC' ? 'RUC' : k.tipo_documento) : 'Documento'}:</dt><dd>{k ? k.numero_documento : '—'}</dd></div>
+          {k?.direccion && <div><dt>Dirección:</dt><dd>{k.direccion}</dd></div>}
+        </dl>
+        <dl>
+          <div><dt>Tipo de moneda:</dt><dd>{r.moneda.nombre} ({r.moneda.codigo})</dd></div>
+          {r.forma_pago && <div><dt>Forma de pago:</dt><dd>{r.forma_pago}</dd></div>}
+          {r.tipo_cambio && <div><dt>Tipo de cambio:</dt><dd>S/ {Number(r.tipo_cambio).toFixed(3)}</dd></div>}
+          <div><dt>Código de reserva:</dt><dd>{r.codigo_reserva || '—'}</dd></div>
+        </dl>
+      </div>
 
       <div className="vc-tabla-envoltura">
         <table className="vc-tabla">
           <thead>
             <tr>
-              <th>Cant.</th><th>U.M.</th><th>Descripción</th>
-              <th className="num">V. unit.</th><th className="num">P. unit.</th><th className="num">{r.columna_importe || 'Importe'}</th>
+              <th className="centro">Cant.</th><th className="centro">U.M.</th><th>Descripción</th>
+              <th className="num">V. unitario</th><th className="num">P. unitario</th>
+              <th className="num">{esFactura ? 'Valor de venta' : 'Importe'}</th>
             </tr>
           </thead>
           <tbody>
             {r.items.map((it, i) => (
               <tr key={i}>
-                <td>{it.cantidad}</td>
-                <td title={it.unidad_texto}>{it.unidad}</td>
+                <td className="centro">{it.cantidad}</td>
+                <td className="centro" title={it.unidad_texto}>{it.unidad}</td>
                 <td>{it.descripcion}</td>
                 <td className="num">{num(it.valor_unitario)}</td>
                 <td className="num">{num(it.precio_unitario)}</td>
-                <td className="num">{num(r.tipo === 'Factura' ? it.valor_venta : it.importe)}</td>
+                <td className="num">{num(esFactura ? it.valor_venta : it.importe)}</td>
               </tr>
             ))}
           </tbody>
         </table>
       </div>
       <p className="vc-nota">
-        U.M. ZZ = servicio · V. unit.: valor unitario sin IGV · P. unit.: precio unitario con IGV
-        {r.tipo === 'Factura' ? ' · Valor de venta: sin IGV.' : ' · Importe: con IGV.'}
+        U.M.: ZZ = servicio · V. unitario: sin IGV · P. unitario: con IGV · {esFactura ? 'Valor de venta: sin IGV.' : 'Importe: con IGV.'}
       </p>
 
-      <section className="vc-pasajeros">
-        <h3>Pasajeros</h3>
-        <ol>
-          {r.pasajeros.map((p, i) => (
-            <li key={i}>{p.nombre}{p.titular ? ' (titular)' : ''} · {p.documento}</li>
-          ))}
-        </ol>
-      </section>
+      <div className="vc-resumen">
+        <section className="vc-observaciones">
+          <h3>Observaciones</h3>
+          <p>Pasajeros:</p>
+          <ol>
+            {r.pasajeros.map((p, i) => (
+              <li key={i}>{p.nombre}{p.titular ? ' (titular)' : ''} - {p.documento}</li>
+            ))}
+          </ol>
+        </section>
+        <dl className="vc-totales">
+          <div><dt>Op. gravada</dt><dd>{s} {num(t.op_gravada ?? t.valor_venta)}</dd></div>
+          <div><dt>Op. exonerada</dt><dd>{s} {num(t.op_exonerada)}</dd></div>
+          <div><dt>{t.exportacion ? 'Exportación' : 'Op. inafecta'}</dt><dd>{s} {num(t.op_inafecta)}</dd></div>
+          <div><dt>IGV ({Math.round(t.igv_tasa * 100)} %)</dt><dd>{s} {num(t.igv)}</dd></div>
+          <div className="vc-total"><dt>Importe total</dt><dd>{s} {num(t.total)}</dd></div>
+        </dl>
+      </div>
 
-      <dl className="vc-totales">
-        <div><dt>{r.totales.operacion}</dt><dd>{s} {num(r.totales.valor_venta)}</dd></div>
-        <div><dt>IGV ({Math.round(r.totales.igv_tasa * 100)} %)</dt><dd>{s} {num(r.totales.igv)}</dd></div>
-        <div className="vc-total"><dt>Importe total</dt><dd>{s} {num(r.totales.total)}</dd></div>
-      </dl>
       <p className="vc-letras">{r.importe_letras}</p>
       {r.tipo_cambio && totalSoles != null && (
         <p className="vc-nota">
@@ -104,8 +112,12 @@ export default function VistaComprobante({ r, totalSoles }) {
       )}
 
       <footer className="vc-pie">
-        {r.emitido_por && <p>Emitido por: {r.emitido_por}</p>}
-        <p>{r.pie}</p>
+        {r.qr_png && <img className="vc-qr" src={r.qr_png} alt={`Código QR del comprobante ${r.numero}`} />}
+        <div>
+          <p className="vc-leyenda">{r.pie}</p>
+          {r.valor_resumen && <p>Valor resumen: {r.valor_resumen}</p>}
+          {r.emitido_por && <p>Emitido por: {r.emitido_por}</p>}
+        </div>
       </footer>
     </article>
   );

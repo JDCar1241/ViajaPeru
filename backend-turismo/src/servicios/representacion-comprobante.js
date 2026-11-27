@@ -1,3 +1,4 @@
+import QRCode from 'qrcode';
 import { EMPRESA } from '../config/empresa.js';
 import { supabase } from '../config/supabase.js';
 
@@ -11,8 +12,17 @@ export async function comprobanteCompletoDeReserva(reservaId) {
   const { data: completo, error: e2 } = await supabase.rpc('obtener_comprobante', { p_id: resumen.id });
   if (e2) throw e2;
   if (!completo) return null;
-  return { ...completo, representacion: representacion(completo) };
+  return { ...completo, representacion: await conQr(representacion(completo)) };
 }
+
+// Agrega la imagen del código QR (data URL PNG) a la representación.
+export async function conQr(r) {
+  const qr_png = await QRCode.toDataURL(r.qr_texto, { errorCorrectionLevel: 'Q', margin: 1, width: 280 });
+  return { ...r, qr_png };
+}
+
+// PNG del QR para el PDF
+export const qrPng = (texto) => QRCode.toBuffer(texto, { errorCorrectionLevel: 'Q', margin: 1, width: 280 });
 
 // Representación de la boleta o factura: UN solo lugar que arma todos los datos que se imprimen
 // (PDF, correo, pantalla del personal y del cliente).
@@ -35,8 +45,23 @@ export async function comprobanteCompletoDeReserva(reservaId) {
 //   IGV_TASA        0.18
 //   IGV_AFECTACION  gravado | exonerado | inafecto | exportacion
 //
+// Código QR (representación impresa, R.S. 097-2012/SUNAT y modificatorias): texto separado por "|"
+//   RUC | tipo de documento (01 factura, 03 boleta) | serie | número | IGV | importe total |
+//   fecha de emisión (aaaa-mm-dd) | tipo de documento del adquirente (catálogo 06) | número | valor resumen | firma |
+// Los campos sin dato quedan vacíos. El valor resumen (hash) y la firma los da la firma digital del XML:
+// existirán recién cuando los comprobantes se envíen a SUNAT por un OSE/PSE.
+//
 // Importante: mientras no se envíe a SUNAT por un OSE/PSE, esto NO es un comprobante electrónico
-// válido; por eso el pie lo indica (PDF_PIE).
+// válido; por eso el pie lo indica (PDF_PIE). Cuando ya se emitan por OSE/PSE:
+//   CPE_ELECTRONICO=true  -> la denominación pasa a "BOLETA DE VENTA ELECTRÓNICA" / "FACTURA ELECTRÓNICA"
+//                            y el pie a "Representación impresa de la …"
+//   CPE_URL_CONSULTA      -> dirección donde el cliente puede consultar su comprobante
+const ELECTRONICO = process.env.CPE_ELECTRONICO === 'true';
+const URL_CONSULTA = (process.env.CPE_URL_CONSULTA || '').trim();
+
+// Catálogo N.° 06 de SUNAT: tipo de documento de identidad
+const CATALOGO_06 = { DNI: '1', CE: '4', 'CARNÉ DE EXTRANJERÍA': '4', RUC: '6', PASAPORTE: '7' };
+const codigoDocumento = (tipo) => CATALOGO_06[String(tipo || '').toUpperCase()] || '0';
 
 const TASA = (() => {
   const t = Number(process.env.IGV_TASA ?? 0.18);
@@ -146,8 +171,27 @@ export function representacion(c) {
     faltan.push('apellidos y nombres o razón social (EMPRESA_RAZON_SOCIAL)');
   }
 
+  const codigoTipo = esFactura ? '01' : '03';
+  const fechaIso = c.emitido_en
+    ? new Date(c.emitido_en).toLocaleDateString('en-CA', { timeZone: 'America/Lima' })
+    : '';
+  const docAdquirente = k ? codigoDocumento(k.tipo_documento) : '-'; // "-" = varios (boleta hasta S/ 700)
+  const qrTexto = [
+    EMPRESA.ruc || '', codigoTipo, c.serie, String(c.numero), igv.toFixed(2), total.toFixed(2),
+    fechaIso, docAdquirente, k?.numero_documento || '', c.valor_resumen || '', '',
+  ].join('|') + '|';
+
+  const nombreDoc = esFactura ? 'Factura' : 'Boleta de Venta';
+  const leyenda = ELECTRONICO
+    ? `Representación impresa de la ${nombreDoc} Electrónica.${URL_CONSULTA ? ` Consulte su documento en ${URL_CONSULTA}` : ''}`
+    : PIE;
+
   return {
-    titulo: esFactura ? 'FACTURA' : 'BOLETA DE VENTA',
+    titulo: (esFactura ? 'FACTURA' : 'BOLETA DE VENTA') + (ELECTRONICO ? ' ELECTRÓNICA' : ''),
+    electronico: ELECTRONICO,
+    tipo_documento_codigo: codigoTipo,
+    qr_texto: qrTexto,
+    valor_resumen: c.valor_resumen || null,
     // Última columna del detalle: factura -> valor de venta sin IGV; boleta -> importe de la venta
     columna_importe: esFactura ? 'Valor de venta' : 'Importe',
     tipo: c.tipo,
@@ -161,11 +205,14 @@ export function representacion(c) {
       domicilio_fiscal: EMPRESA.direccion || null,
       // Punto de emisión: si no se configura otro, es el mismo domicilio fiscal (venta por la web)
       establecimiento: EMPRESA.establecimiento || EMPRESA.direccion || null,
+      telefono: EMPRESA.telefono || null,
+      correo: EMPRESA.correo || null,
     },
     faltan_datos_emisor: faltan,
     adquirente: k
       ? {
           tipo_documento: k.tipo_documento,
+          codigo_documento: docAdquirente,
           numero_documento: k.numero_documento,
           nombre: k.nombre,
           direccion: k.direccion || null,
@@ -190,6 +237,11 @@ export function representacion(c) {
     totales: {
       operacion: TEXTO_OPERACION[AFECTACION],
       valor_venta: valorVenta,
+      // Resumen como en la representación impresa de SUNAT (las que no aplican van en 0.00)
+      op_gravada: AFECTACION === 'gravado' ? valorVenta : 0,
+      op_exonerada: AFECTACION === 'exonerado' ? valorVenta : 0,
+      op_inafecta: AFECTACION === 'inafecto' || AFECTACION === 'exportacion' ? valorVenta : 0,
+      exportacion: AFECTACION === 'exportacion',
       igv_tasa: gravado ? TASA : 0,
       igv,
       total,
@@ -197,6 +249,6 @@ export function representacion(c) {
     importe_letras: importeEnLetras(total, moneda),
     codigo_reserva: d.codigo || null,
     emitido_por: c.emitido_por_nombre || null,
-    pie: PIE,
+    pie: leyenda,
   };
 }

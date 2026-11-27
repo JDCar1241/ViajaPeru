@@ -1,5 +1,5 @@
 import { Router } from 'express';
-import { representacion, comprobanteCompletoDeReserva } from '../servicios/representacion-comprobante.js';
+import { representacion, comprobanteCompletoDeReserva, conQr } from '../servicios/representacion-comprobante.js';
 import { supabase } from '../config/supabase.js';
 import { requiereSesion, fallo } from '../middlewares/auth.middleware.js';
 import { generarPdf, numeroCompleto } from '../servicios/comprobante.pdf.js';
@@ -63,7 +63,7 @@ router.post('/reservas/:id/comprobante', requiereSesion(ROLES), async (req, res,
 
     // Comprobante completo con su representación (lo que se imprime), para mostrarlo en pantalla
     const { data: completo } = await supabase.rpc('obtener_comprobante', { p_id: data.id });
-    const conRepresentacion = completo ? { ...completo, representacion: representacion(completo) } : data;
+    const conRepresentacion = completo ? { ...completo, representacion: await conQr(representacion(completo)) } : data;
 
     res.status(201).json({ ...conRepresentacion, correo_enviado: correoEnviado });
   } catch (e) { next(e); }
