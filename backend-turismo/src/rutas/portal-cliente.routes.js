@@ -16,6 +16,9 @@ import { generarPdf } from '../servicios/comprobante.pdf.js';
 import { liberarVencidas, vencida, MINUTOS_APARTADO, MINUTOS_PAGO } from '../servicios/vencimientos.js';
 import { esUsd, tipoCambioDe, aCentimosUsd } from '../utils/moneda.js';
 import { representacion } from '../servicios/representacion-comprobante.js';
+import { validarComprador } from './comprobantes.routes.js';
+import { consultarRuc, RE_RUC } from './consultas.routes.js';
+import { ErrorServicio } from '../servicios/factiliza.js';
 import { emitirYEnviarComprobante } from '../servicios/comprobante-digital.js';
 import {
   crearCargo,
@@ -359,8 +362,35 @@ async function saldoDisponible(clienteId) {
 // Culqi limita cada pago con Yape a S/ 2,000.
 const YAPE_MAX_CENT = 200_000;
 
+// Consultas de RUC del cliente (factura en el pago online): limitadas por cuenta para no gastar la cuota.
+const limitarRuc = crearLimitador({
+  ventanaMs: 10 * 60 * 1000,
+  maximo: 10,
+  clave: (req) => req.usuario.id,
+  mensaje: 'Hiciste varias consultas de RUC. Espera unos minutos o escribe los datos a mano.',
+});
+
+// GET /api/portal-cliente/ruc/:numero  ->  { encontrado, razon_social, direccion, activo, estado, condicion }
+router.get('/ruc/:numero', limitarRuc, async (req, res, next) => {
+  try {
+    const numero = txt(req.params.numero);
+    if (!RE_RUC.test(numero)) {
+      return fallo(res, 400, 'El RUC debe tener 11 dígitos y empezar con 10, 15, 16, 17 o 20.');
+    }
+    res.json(await consultarRuc(numero));
+  } catch (e) {
+    if (e instanceof ErrorServicio) {
+      console.error('Consulta de RUC (cliente) falló:', e.message);
+      return fallo(res, 502, 'No pudimos consultar el RUC. Escribe los datos a mano.');
+    }
+    next(e);
+  }
+});
+
 // POST /api/portal-cliente/reservas/:id/pagar
-// { token?, moneda?: 'PEN' | 'USD', usar_saldo?: boolean }
+// { token?, moneda?: 'PEN' | 'USD', usar_saldo?: boolean,
+//   comprobante?: { tipo: 'Boleta' } | { tipo: 'Factura', comprador: { tipo_documento: 'RUC', numero_documento, nombre, direccion } } }
+// Sin "comprobante": boleta a nombre del titular.
 // token: tkn_... (tarjeta) o ype_... (Yape por Culqi: se confirma al instante, solo soles).
 // Con usar_saldo se gasta TODO el saldo posible (hasta el total de la reserva).
 // Si el saldo cubre el total no hace falta tarjeta ni Yape; si no, el resto se cobra con el token.
@@ -401,6 +431,18 @@ router.post('/reservas/:id/pagar', limitarPago, async (req, res, next) => {
 
     if (!MONEDAS.includes(moneda)) {
       return fallo(res, 400, 'Selecciona soles o dólares.');
+    }
+
+    // Comprobante elegido: se valida ANTES de cobrar (una factura mal llenada no debe dejar un cargo hecho)
+    const pedidoComp = req.body?.comprobante ?? { tipo: 'Boleta' };
+    if (!['Boleta', 'Factura'].includes(pedidoComp?.tipo)) {
+      return fallo(res, 400, 'Elige boleta o factura.');
+    }
+    let elegido = null;
+    if (pedidoComp.tipo === 'Factura') {
+      const vc = validarComprador('Factura', pedidoComp.comprador);
+      if (vc.error) return fallo(res, 400, vc.error);
+      elegido = { tipo: 'Factura', comprador: vc.comprador };
     }
 
     const propiedad = await comprobarPropiedad(req, id);
@@ -660,15 +702,16 @@ router.post('/reservas/:id/pagar', limitarPago, async (req, res, next) => {
       }
     }
 
-    // HU-007: boleta automática a nombre del titular, enviada por correo con el PDF.
-    const comprobante = await emitirYEnviarComprobante(id, req.usuario.id);
+    // HU-007: boleta a nombre del titular o la factura que pidió el cliente, enviada por correo con el PDF.
+    const comprobante = await emitirYEnviarComprobante(id, req.usuario.id, elegido);
+    const nombreComp = elegido ? 'factura' : 'boleta';
 
     return res.status(201).json({
       mensaje: !comprobante
         ? 'Pago realizado correctamente.'
         : comprobante.correo_enviado
-          ? 'Pago realizado correctamente. Te enviamos tu boleta por correo.'
-          : 'Pago realizado correctamente. Tu boleta está en "Ver mi comprobante" (no pudimos enviarla por correo).',
+          ? `Pago realizado correctamente. Te enviamos tu ${nombreComp} por correo.`
+          : `Pago realizado correctamente. Tu ${nombreComp} está en "Ver mi comprobante" (no pudimos enviarla por correo).`,
       pago,
       comprobante_id: comprobante?.id ?? null,
       correo_enviado: comprobante?.correo_enviado ?? false,

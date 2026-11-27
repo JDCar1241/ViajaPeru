@@ -799,3 +799,46 @@
   color: var(--blue);
   font-weight: 600;
 }
+
+/* Factura en el pago online */
+.mr-factura {
+  margin-top: 4px;
+}
+
+.mr-ruc {
+  display: flex;
+  gap: 8px;
+}
+
+.mr-ruc input {
+  flex: 1;
+}
+
+.mr-ruc-buscar {
+  flex: none;
+  padding: 0 16px;
+  border: 1px solid var(--line-d);
+  border-radius: 999px;
+  background: #fff;
+  color: var(--blue);
+  font: 600 13px "Figtree", sans-serif;
+  cursor: pointer;
+}
+
+.mr-ruc-buscar:hover:not(:disabled) {
+  background: var(--sky);
+}
+
+.mr-ruc-ok,
+.mr-ruc-aviso {
+  margin: 6px 0 0;
+  font-size: 12px;
+}
+
+.mr-ruc-ok {
+  color: var(--ok);
+}
+
+.mr-ruc-aviso {
+  color: var(--warn);
+}

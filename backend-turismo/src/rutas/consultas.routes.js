@@ -48,38 +48,44 @@ const buscarPersona = (tipo) => async (req, res, next) => {
 router.get('/dni/:numero', limitar, buscarPersona('DNI'));
 router.get('/ce/:numero', limitar, buscarPersona('CE'));
 
-// GET /api/consultas/ruc/:numero  ->  { encontrado, razon_social, direccion, activo, estado, condicion }
+// Consulta de RUC (la usan el personal de caja y el cliente al pedir factura en el pago online).
+// -> { encontrado, razon_social, direccion, activo, estado, condicion }
 // "activo" es true solo si el contribuyente está ACTIVO y HABIDO (conviene advertir antes de facturar).
+export const RE_RUC = /^(10|15|16|17|20)\d{9}$/;
+export async function consultarRuc(numero) {
+  const r = await consultarFactiliza(`/ruc/info/${numero}`);
+  const d = r.cuerpo?.data;
+
+  if (!r.ok || !d) {
+    if (r.estado !== 400 && r.estado !== 404) {
+      console.error('Factiliza RUC respondió', r.estado, JSON.stringify(r.cuerpo));
+    }
+    return { encontrado: false };
+  }
+
+  const razon = txt(d.nombre_o_razon_social);
+  if (!razon) return { encontrado: false };
+
+  const estado = txt(d.estado).toUpperCase();
+  const condicion = txt(d.condicion).toUpperCase();
+  return {
+    encontrado: true,
+    razon_social: razon,
+    direccion: txt(d.direccion_completa) || txt(d.direccion),
+    estado,
+    condicion,
+    activo: estado === 'ACTIVO' && condicion === 'HABIDO',
+  };
+}
+
+// GET /api/consultas/ruc/:numero
 router.get('/ruc/:numero', limitar, async (req, res, next) => {
   try {
     const numero = txt(req.params.numero);
-    if (!/^(10|15|16|17|20)\d{9}$/.test(numero)) {
+    if (!RE_RUC.test(numero)) {
       return fallo(res, 400, 'El RUC debe tener 11 dígitos y empezar con 10, 15, 16, 17 o 20.');
     }
-
-    const r = await consultarFactiliza(`/ruc/info/${numero}`);
-    const d = r.cuerpo?.data;
-
-    if (!r.ok || !d) {
-      if (r.estado !== 400 && r.estado !== 404) {
-        console.error('Factiliza RUC respondió', r.estado, JSON.stringify(r.cuerpo));
-      }
-      return res.json({ encontrado: false });
-    }
-
-    const razon = txt(d.nombre_o_razon_social);
-    if (!razon) return res.json({ encontrado: false });
-
-    const estado = txt(d.estado).toUpperCase();
-    const condicion = txt(d.condicion).toUpperCase();
-    res.json({
-      encontrado: true,
-      razon_social: razon,
-      direccion: txt(d.direccion_completa) || txt(d.direccion),
-      estado,
-      condicion,
-      activo: estado === 'ACTIVO' && condicion === 'HABIDO',
-    });
+    res.json(await consultarRuc(numero));
   } catch (e) {
     if (e instanceof ErrorServicio) {
       console.error('Consulta de RUC falló:', e.message);

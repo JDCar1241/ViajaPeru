@@ -10,6 +10,8 @@ import Icono from '../../componentes/Icono.jsx';
 import CuentaRegresiva from '../../componentes/CuentaRegresiva.jsx';
 import { esUsd, totalReserva } from '../../utils/moneda.js';
 
+const RE_RUC = /^(10|15|16|17|20)\d{9}$/; // 11 dígitos; 10 = persona natural, 20 = empresa
+
 function moneda(valor, tipo = 'PEN') {
   return Number(valor || 0).toLocaleString('es-PE', {
     style: 'currency',
@@ -86,6 +88,11 @@ export default function MiReserva() {
   // Saldo a favor (HU: si el cliente tiene saldo puede usarlo y se gasta todo lo posible)
   const [saldo, setSaldo] = useState(0);
   const [usarSaldo, setUsarSaldo] = useState(false);
+
+  // Comprobante que se emitirá al pagar: boleta a nombre del titular o factura con RUC
+  const [tipoComp, setTipoComp] = useState('Boleta');
+  const [fac, setFac] = useState({ ruc: '', razon: '', direccion: '' });
+  const [busqRuc, setBusqRuc] = useState({ estado: 'idle', msg: '' });
 
   const [cancelando, setCancelando] = useState(false);
   const [confirmarCancelacion, setConfirmarCancelacion] = useState(false);
@@ -244,9 +251,59 @@ export default function MiReserva() {
     setMensaje('');
   }
 
+  // Lo que se envía al Backend para emitir el comprobante (lo vuelve a validar antes de cobrar)
+  function comprobanteElegido() {
+    if (tipoComp !== 'Factura') return { tipo: 'Boleta' };
+    return {
+      tipo: 'Factura',
+      comprador: {
+        tipo_documento: 'RUC',
+        numero_documento: fac.ruc.trim(),
+        nombre: fac.razon.trim(),
+        direccion: fac.direccion.trim(),
+      },
+    };
+  }
+
+  function errorFactura() {
+    if (tipoComp !== 'Factura') return '';
+    if (!RE_RUC.test(fac.ruc.trim())) return 'Para la factura, el RUC debe tener 11 dígitos y empezar con 10, 15, 16, 17 o 20.';
+    if (!fac.razon.trim()) return 'Para la factura, escribe la razón social.';
+    if (!fac.direccion.trim()) return 'Para la factura, escribe la dirección fiscal.';
+    return '';
+  }
+
+  async function buscarRuc() {
+    const ruc = fac.ruc.trim();
+    if (!RE_RUC.test(ruc)) {
+      setBusqRuc({ estado: 'error', msg: 'Escribe un RUC de 11 dígitos para buscar.' });
+      return;
+    }
+    setBusqRuc({ estado: 'buscando', msg: '' });
+    try {
+      const d = await pedir('/portal-cliente/ruc/' + ruc);
+      if (!d?.encontrado) {
+        setBusqRuc({ estado: 'vacio', msg: 'No encontramos este RUC. Escribe los datos a mano.' });
+        return;
+      }
+      setFac((f) => ({ ...f, razon: d.razon_social, direccion: d.direccion || f.direccion }));
+      setBusqRuc(d.activo
+        ? { estado: 'ok', msg: 'Datos encontrados. Revísalos antes de pagar.' }
+        : { estado: 'aviso', msg: `Este RUC figura como ${d.estado} y ${d.condicion}. Verifica que sea el correcto.` });
+    } catch (e) {
+      setBusqRuc({ estado: 'error', msg: e.message || 'No pudimos consultar el RUC. Escribe los datos a mano.' });
+    }
+  }
+
   async function pagar() {
     setError('');
     setMensaje('');
+
+    const faltaFactura = errorFactura();
+    if (faltaFactura) {
+      setError(faltaFactura);
+      return;
+    }
 
     if (!reserva || !pendiente) {
       setError('Esta reserva ya no está pendiente de pago.');
@@ -262,7 +319,7 @@ export default function MiReserva() {
 
         const respuesta = await pedir(`/portal-cliente/reservas/${id}/pagar`, {
           method: 'POST',
-          body: JSON.stringify({ usar_saldo: true }),
+          body: JSON.stringify({ usar_saldo: true, comprobante: comprobanteElegido() }),
         });
 
         setMensaje(
@@ -347,6 +404,7 @@ export default function MiReserva() {
             token,
             moneda: monedaPago,
             usar_saldo: usarSaldo,
+            comprobante: comprobanteElegido(),
           }),
         }
       );
@@ -631,6 +689,75 @@ export default function MiReserva() {
                       </label>
                     )}
 
+                    <label>Comprobante</label>
+                    <div className="mr-opciones">
+                      {[
+                        ['Boleta', 'Boleta de venta', 'A nombre del titular'],
+                        ['Factura', 'Factura', 'Con el RUC de tu empresa o negocio'],
+                      ].map(([valor, titulo, detalle]) => (
+                        <button
+                          key={valor}
+                          type="button"
+                          className={`mr-opcion ${tipoComp === valor ? 'mr-opcion-activa' : ''}`}
+                          onClick={() => { setTipoComp(valor); setError(''); }}
+                          disabled={pagando || esperandoTarjeta}
+                          aria-pressed={tipoComp === valor}
+                        >
+                          <strong>{titulo}</strong>
+                          <small>{detalle}</small>
+                        </button>
+                      ))}
+                    </div>
+
+                    {tipoComp === 'Factura' && (
+                      <div className="mr-factura">
+                        <label htmlFor="mr-ruc">RUC</label>
+                        <div className="mr-ruc">
+                          <input
+                            id="mr-ruc"
+                            inputMode="numeric"
+                            maxLength={11}
+                            value={fac.ruc}
+                            onChange={(e) => {
+                              setFac({ ...fac, ruc: e.target.value.replace(/\D/g, '').slice(0, 11) });
+                              setBusqRuc({ estado: 'idle', msg: '' });
+                            }}
+                            placeholder="20123456789"
+                            disabled={pagando || esperandoTarjeta}
+                          />
+                          <button
+                            type="button"
+                            className="mr-ruc-buscar"
+                            onClick={buscarRuc}
+                            disabled={pagando || esperandoTarjeta || busqRuc.estado === 'buscando'}
+                          >
+                            {busqRuc.estado === 'buscando' ? 'Buscando…' : 'Buscar RUC'}
+                          </button>
+                        </div>
+                        {busqRuc.msg && (
+                          <p className={busqRuc.estado === 'ok' ? 'mr-ruc-ok' : 'mr-ruc-aviso'} role="status">{busqRuc.msg}</p>
+                        )}
+
+                        <label htmlFor="mr-razon">Razón social</label>
+                        <input
+                          id="mr-razon"
+                          maxLength={200}
+                          value={fac.razon}
+                          onChange={(e) => setFac({ ...fac, razon: e.target.value })}
+                          disabled={pagando || esperandoTarjeta}
+                        />
+
+                        <label htmlFor="mr-direccion">Dirección fiscal</label>
+                        <input
+                          id="mr-direccion"
+                          maxLength={250}
+                          value={fac.direccion}
+                          onChange={(e) => setFac({ ...fac, direccion: e.target.value })}
+                          disabled={pagando || esperandoTarjeta}
+                        />
+                      </div>
+                    )}
+
                     {soloSaldo && (
                       <>
                         <div className="mr-cobro">
@@ -780,7 +907,7 @@ export default function MiReserva() {
                         <ol className="mr-yape-pasos">
                           <li>Abre tu app <b>Yape</b> y busca la opción <b>Código de aprobación</b>.</li>
                           <li>Pulsa <b>Pagar con Yape</b>, escribe tu celular y ese código (dura 2 minutos).</li>
-                          <li>El pago se confirma al instante y te enviamos la boleta por correo.</li>
+                          <li>El pago se confirma al instante y te enviamos el comprobante por correo.</li>
                         </ol>
 
                         <label htmlFor="mr-correo-yape">Correo electrónico</label>
