@@ -205,7 +205,8 @@ export function validarReserva(body, fechaSalida, opciones = {}) {
 
     if (msg) return { error: msg };
 
-    if (!telefonoInternacionalValido(a.telefono)) {
+    // El teléfono del acompañante es opcional: si viene, debe tener código de país y largo correcto
+    if (a.telefono && !telefonoInternacionalValido(a.telefono)) {
       return {
         error: `El teléfono del acompañante ${i + 1} no tiene un formato válido para el país elegido.`,
       };

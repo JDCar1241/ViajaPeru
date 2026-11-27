@@ -722,6 +722,12 @@ router.post('/reservas', async (req, res, next) => {
 
     const body = req.body || {};
 
+    // Términos y condiciones: los datos ingresados tienen carácter de declaración jurada.
+    // Se acepta al confirmar la reserva (queda registrada con la fecha de creación de la reserva).
+    if (body.declaracion_jurada !== true) {
+      return fallo(res, 400, 'Debes declarar que los datos ingresados son verdaderos.');
+    }
+
     const modoManual =
       body.modo_titular === 'manual' ||
       body.usar_datos_cuenta === false;

@@ -1,7 +1,7 @@
 import './legal.css';
 import { useEmpresa } from '../../servicios/empresa.js';
 
-export const ACTUALIZADO = '24 de noviembre de 2026';
+export const ACTUALIZADO = '27 de noviembre de 2026';
 
 // Quién vende: se muestra en Términos, Cancelaciones y Libro de Reclamaciones.
 export function DatosVendedor() {
@@ -131,7 +131,16 @@ export default function Terminos() {
       <section id="cliente" className="tarjeta">
         <h2>7. Responsabilidades del cliente</h2>
         <ul>
-          <li>Registrar datos verdaderos y completos del titular y de cada acompañante.</li>
+          <li id="veracidad">
+            Registrar datos verdaderos y completos del titular y de cada acompañante. <strong>Los datos que ingresas
+            (nombres, documentos, fechas de nacimiento y datos de contacto) tienen carácter de declaración jurada</strong>:
+            al confirmar la reserva declaras bajo juramento que son verdaderos y asumes la responsabilidad por su
+            exactitud. {e.nombre} los usa tal como los registras para la reserva, el comprobante y las listas de
+            pasajeros; por eso la fecha de nacimiento solo se revisa en su formato, sin verificación adicional.
+            Si un dato es falso o inexacto y por
+            ello no se puede prestar el servicio (por ejemplo, si el documento presentado al guía no coincide),
+            se aplica lo indicado para la no presentación.
+          </li>
           <li>Llevar al viaje el documento de identidad vigente registrado en la reserva.</li>
           <li>Presentarse en el punto y la hora de salida indicados. Si no te presentas, el servicio se considera prestado.</li>
           <li>Leer el itinerario y la información importante del paquete antes de pagar.</li>

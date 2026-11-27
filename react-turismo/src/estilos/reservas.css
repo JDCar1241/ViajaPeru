@@ -38,6 +38,11 @@
 .vp-cupos p{margin:0}
 .vp-cupos--excede{background:var(--vp-error)}
 .vp-cupos .vp-alerta{background:#fff}
+.vp-declara{display:grid;gap:.35rem;font-size:.9rem}
+.vp-declara label{display:flex;gap:.6rem;align-items:flex-start;cursor:pointer}
+.vp-declara input{width:1.1rem;height:1.1rem;margin-top:.15rem;flex:none;accent-color:var(--vp-amarillo)}
+.vp-declara a{color:var(--vp-amarillo)}
+.vp-cupos .vp-declara .vp-error{background:#fff;border-radius:var(--radio);padding:.35rem .7rem}
 .vp-asientos{display:flex;gap:4px;flex-wrap:wrap}
 .vp-asientos i{width:14px;height:14px;border-radius:3px 3px 6px 6px;background:rgba(255,255,255,.25)}
 .vp-asientos i.ocupa{background:var(--vp-amarillo)}

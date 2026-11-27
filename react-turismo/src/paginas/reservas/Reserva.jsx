@@ -54,10 +54,17 @@ const persona = () => ({
   mrz2: '',
 });
 
+// Cada acompañante lleva un identificador propio (uid) que se usa como "key" de React.
+// Con el índice como key, al quitar un acompañante el estado interno de los campos
+// (mensaje de búsqueda, país del teléfono) pasaba al acompañante siguiente.
+let ultimoUid = 0;
+const nuevoAcompanante = () => ({ ...persona(), uid: ++ultimoUid });
+
 // El Backend y la base guardan un solo campo "apellidos" (paterno + materno).
 // Con pasaporte se envía la MRZ: el Backend la valida y toma de ahí los datos.
 const paraEnviar = (p) => {
-  const { mrz1, mrz2, ...resto } = conApellidos(p);
+  // eslint-disable-next-line no-unused-vars
+  const { mrz1, mrz2, uid, ...resto } = conApellidos(p);
   return p.tipo_documento === 'PASAPORTE' ? { ...resto, mrz: [mrz1, mrz2] } : resto;
 };
 const conApellidos = (p) => ({
@@ -117,6 +124,8 @@ function Fila({
   permitirConsulta = true,
   soloDni = false,
   conTelefono = false,
+  etiquetaTelefono = 'Teléfono',
+  enfocarDocumento = false, // acompañante recién agregado: el cursor va al número de documento
 }) {
   const [busq, setBusq] = useState({
     estado: 'idle',
@@ -249,6 +258,7 @@ function Fila({
           maxLength={esDni ? 8 : 12}
           value={p.nro_documento}
           disabled={esPasaporte}
+          autoFocus={enfocarDocumento}
           title={esPasaporte ? 'Se toma de la MRZ del pasaporte' : undefined}
           onChange={(e) =>
             cambiarDoc({
@@ -379,7 +389,7 @@ function Fila({
 
         {conTelefono && (
           <Telefono
-            etiqueta="Teléfono"
+            etiqueta={etiquetaTelefono}
             value={p.telefono}
             onChange={(t) => onCambio({ telefono: t })}
             error={err[pre + 'telefono']}
@@ -425,6 +435,8 @@ export default function Reserva({ paqueteId, salidaId }) {
   const [modoTitular, setModoTitular] = useState('perfil');
 
   const [acomp, setAcomp] = useState([]);
+  const [recienAgregado, setRecienAgregado] = useState(null); // uid del último acompañante agregado
+  const [declara, setDeclara] = useState(false); // declaración jurada (solo compra online)
   const [err, setErr] = useState({});
   const [fallo, setFallo] = useState('');
   const [enviando, setEnviando] = useState(false);
@@ -712,12 +724,17 @@ export default function Reserva({ paqueteId, salidaId }) {
       n['c.telefono'] = titularFormulario.telefono ? MSG_TELEFONO : 'Escribe el teléfono.';
     }
 
+    // El teléfono del acompañante es opcional: solo se valida si se escribió
     acomp.forEach((a, i) => {
       chk('a' + i + '.', a, false);
-      if (!telefonoValido(a.telefono)) {
-        n['a' + i + '.telefono'] = a.telefono ? MSG_TELEFONO : 'Escribe el teléfono del acompañante.';
+      if (a.telefono && !telefonoValido(a.telefono)) {
+        n['a' + i + '.telefono'] = MSG_TELEFONO;
       }
     });
+
+    if (esCliente && !declara) {
+      n.declara = 'Debes declarar que los datos ingresados son verdaderos.';
+    }
 
     return n;
   }
@@ -747,6 +764,7 @@ export default function Reserva({ paqueteId, salidaId }) {
           salida_id: salida[C.id],
           modo_titular: modoTitular,
           acompanantes: acomp.map(paraEnviar),
+          declaracion_jurada: declara,
         };
 
         if (modoTitular === 'manual') {
@@ -1012,7 +1030,7 @@ export default function Reserva({ paqueteId, salidaId }) {
           )}
 
           {acomp.map((a, i) => (
-            <div className="vp-acomp" key={i}>
+            <div className="vp-acomp" key={a.uid}>
               <h3>Acompañante {i + 1}</h3>
 
               <Fila
@@ -1023,14 +1041,18 @@ export default function Reserva({ paqueteId, salidaId }) {
                 fechaSalida={fechaSalida}
                 permitirConsulta={!esCliente}
                 conTelefono
+                etiquetaTelefono="Teléfono (opcional)"
+                enfocarDocumento={a.uid === recienAgregado}
               />
 
               <button
                 type="button"
                 className="vp-btn vp-btn--borde"
-                onClick={() =>
-                  setAcomp(acomp.filter((_, j) => j !== i))
-                }
+                onClick={() => {
+                  setAcomp(acomp.filter((x) => x.uid !== a.uid));
+                  // Los mensajes de error van por posición ("a0.", "a1."…): al quitar uno se limpian
+                  setErr({});
+                }}
               >
                 Quitar
               </button>
@@ -1047,7 +1069,10 @@ export default function Reserva({ paqueteId, salidaId }) {
                 return;
               }
               setFallo('');
-              setAcomp([...acomp, persona()]);
+              // Siempre un acompañante en blanco (el número de documento empieza vacío)
+              const nuevo = nuevoAcompanante();
+              setRecienAgregado(nuevo.uid);
+              setAcomp([...acomp, nuevo]);
             }}
           >
             Agregar acompañante
@@ -1084,6 +1109,27 @@ export default function Reserva({ paqueteId, salidaId }) {
               ? ' — superas los cupos de esta salida.'
               : ` — quedarán ${restantes}.`}
           </p>
+
+          {esCliente && (
+            <div className="vp-declara">
+              <label>
+                <input
+                  type="checkbox"
+                  checked={declara}
+                  onChange={(e) => {
+                    setDeclara(e.target.checked);
+                    if (e.target.checked) setErr((x) => ({ ...x, declara: undefined }));
+                  }}
+                  aria-invalid={!!err.declara}
+                />
+                <span>
+                  Declaro bajo juramento que los datos del titular y de los acompañantes son verdaderos,
+                  según los <a href="#/terminos" target="_blank" rel="noreferrer">Términos y condiciones</a>.
+                </span>
+              </label>
+              {err.declara && <p className="vp-error" role="alert">{err.declara}</p>}
+            </div>
+          )}
 
           {fallo && (
             <p className="vp-alerta" role="alert">
