@@ -5,6 +5,8 @@ import { requiereSesion, fallo } from '../middlewares/auth.middleware.js';
 import { crearLimitador } from '../middlewares/limitar.js';
 import { enviarCorreo } from '../servicios/correo.js';
 import { ROLES_ADMIN, DOCUMENTOS, esCorreo, idValido, txt } from '../utils/comunes.js';
+import { analizarMrz } from '../utils/mrz.js';
+import { nombreNacionalidad, normalizarNacionalidad } from '../utils/nacionalidades.js';
 
 // Libro de Reclamaciones virtual (Código de Protección y Defensa del Consumidor, Ley 29571,
 // y su reglamento). Requiere supabase/12-libro-reclamaciones.sql.
@@ -72,14 +74,44 @@ function validar(b) {
   const tipo = b?.tipo;
   if (!['Reclamo', 'Queja'].includes(tipo)) errores.tipo = 'Elige si es un reclamo o una queja.';
 
-  const nombre = txt(b?.consumidor_nombre);
-  if (nombre.length < 3 || nombre.length > 150) errores.consumidor_nombre = 'Escribe tu nombre completo.';
-
   const tipoDoc = String(b?.tipo_documento || '').toUpperCase();
-  const numDoc = txt(b?.numero_documento).replace(/\s+/g, '').toUpperCase();
+  let numDoc = txt(b?.numero_documento).replace(/\s+/g, '').toUpperCase();
+  let nombres = txt(b?.nombres);
+  let apellidos = txt(b?.apellidos);
+  let nacionalidad = normalizarNacionalidad(txt(b?.nacionalidad));
+
+  // Pasaporte con MRZ (opcional): se valida y sus datos reemplazan a los escritos.
+  // Un pasaporte vencido no impide reclamar.
+  const mrz = Array.isArray(b?.mrz) ? b.mrz.slice(0, 2).map((l) => String(l ?? '')) : null;
+  if (tipoDoc === 'PASAPORTE' && mrz && mrz.some(Boolean)) {
+    const r = analizarMrz(mrz[0], mrz[1], new Date(), { permitirVencido: true });
+    if (r.incompleto) errores.mrz = 'Cada línea de la MRZ debe tener 44 caracteres.';
+    else if (!r.ok) errores.mrz = r.errores[0];
+    else {
+      numDoc = r.datos.numero;
+      nombres = r.datos.nombres;
+      apellidos = r.datos.apellidos;
+      nacionalidad = normalizarNacionalidad(r.datos.nacionalidad);
+    }
+  }
+
+  // Una pestaña abierta antes de este cambio todavía envía "consumidor_nombre" en un solo campo
+  const nombreAntiguo = !nombres && !apellidos ? txt(b?.consumidor_nombre) : '';
+  if (!nombreAntiguo) {
+    if (nombres.length < 1 || nombres.length > 75) errores.nombres = 'Escribe tus nombres.';
+    if (apellidos.length < 1 || apellidos.length > 75) errores.apellidos = 'Escribe tus apellidos.';
+  }
+  const nombre = nombreAntiguo || `${nombres} ${apellidos}`.trim();
+  if (nombreAntiguo && (nombre.length < 3 || nombre.length > 150)) errores.nombres = 'Escribe tus nombres.';
+
   const regla = DOCUMENTOS[tipoDoc];
   if (!regla) errores.tipo_documento = 'Elige el tipo de documento.';
   else if (!regla.re.test(numDoc)) errores.numero_documento = `El ${regla.nombre} ${regla.msg}.`;
+
+  // Nacionalidad: DNI = peruana; pasaporte = obligatoria; carné de extranjería = opcional
+  if (tipoDoc === 'DNI') nacionalidad = 'PER';
+  if (nacionalidad && !/^[A-Z]{1,3}$/.test(nacionalidad)) errores.nacionalidad = 'Elige una nacionalidad válida.';
+  if (tipoDoc === 'PASAPORTE' && !nacionalidad) errores.nacionalidad = 'Elige tu nacionalidad.';
 
   const domicilio = txt(b?.domicilio);
   if (domicilio.length < 5 || domicilio.length > 250) errores.domicilio = 'Escribe tu domicilio.';
@@ -125,6 +157,9 @@ function validar(b) {
     fila: {
       tipo,
       consumidor_nombre: nombre,
+      consumidor_nombres: nombreAntiguo ? null : nombres,
+      consumidor_apellidos: nombreAntiguo ? null : apellidos,
+      nacionalidad: nacionalidad || null,
       tipo_documento: tipoDoc,
       numero_documento: numDoc,
       domicilio,
@@ -159,8 +194,11 @@ function hojaHtml(r, intro) {
     EMPRESA.direccion ? fila('Dirección', EMPRESA.direccion) : '',
   ];
   const consumidor = [
-    fila('Nombre', r.consumidor_nombre),
+    ...(r.consumidor_apellidos
+      ? [fila('Nombres', r.consumidor_nombres), fila('Apellidos', r.consumidor_apellidos)]
+      : [fila('Nombre', r.consumidor_nombre)]),
     fila(docs[r.tipo_documento] || r.tipo_documento, r.numero_documento),
+    r.nacionalidad ? fila('Nacionalidad', nombreNacionalidad(r.nacionalidad)) : '',
     fila('Domicilio', r.domicilio),
     fila('Teléfono', r.telefono),
     fila('Correo', r.correo),

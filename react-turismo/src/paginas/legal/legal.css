@@ -208,6 +208,39 @@
   border-color: var(--error);
 }
 
+/* MRZ del pasaporte (opcional) */
+.lr-mrz {
+  display: grid;
+  gap: 12px;
+  padding: 14px 16px;
+  border-radius: var(--radio-s);
+  background: var(--sky);
+}
+
+.lr-mrz .lr-nota {
+  margin: 0;
+  color: var(--navy);
+}
+
+.lr-mrz input {
+  font-family: ui-monospace, Menlo, Consolas, monospace;
+  font-size: 14px;
+  letter-spacing: 0.04em;
+}
+
+.lr-ayuda {
+  margin: 0;
+  color: var(--muted);
+  font-size: 13px;
+}
+
+.lr-ok {
+  margin: 0;
+  color: var(--ok);
+  font-size: 13px;
+  font-weight: 600;
+}
+
 .lr-error {
   margin: 2px 0 0;
   color: var(--error);

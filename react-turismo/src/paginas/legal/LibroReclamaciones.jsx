@@ -3,15 +3,23 @@ import './legal.css';
 import Icono from '../../componentes/Icono.jsx';
 import { pedir } from '../../servicios/api.js';
 import { useEmpresa } from '../../servicios/empresa.js';
+import { analizarMrz, limpiarMrz } from '../../utils/mrz.js';
+import { NACIONALIDADES, normalizarNacionalidad } from '../../utils/nacionalidades.js';
 
 // Libro de Reclamaciones virtual: los campos siguen la Hoja de Reclamación de INDECOPI.
 // Al enviarlo, el Backend asigna el número correlativo y envía la copia al correo del consumidor.
+// Con pasaporte se pueden pegar las 2 líneas de la zona MRZ (ICAO 9303, TD3: 2 × 44 caracteres)
+// para autocompletar nombres, apellidos, número y nacionalidad. Es opcional: nadie se queda sin reclamar.
 
 const VACIO = {
   tipo: 'Reclamo',
-  consumidor_nombre: '',
+  nombres: '',
+  apellidos: '',
   tipo_documento: 'DNI',
   numero_documento: '',
+  nacionalidad: '',
+  mrz1: '',
+  mrz2: '',
   domicilio: '',
   telefono: '',
   correo: '',
@@ -59,12 +67,51 @@ export default function LibroReclamaciones() {
 
   const props = (campo) => ({ value: f[campo], onChange: cambiar(campo), 'aria-invalid': !!errores[campo] });
 
+  const esPasaporte = f.tipo_documento === 'PASAPORTE';
+  // El pasaporte vencido no impide reclamar
+  const mrz = esPasaporte && (f.mrz1 || f.mrz2) ? analizarMrz(f.mrz1, f.mrz2, undefined, { permitirVencido: true }) : null;
+
+  const cambiarTipoDoc = (ev) => {
+    const tipo = ev.target.value;
+    setF((x) => ({ ...x, tipo_documento: tipo, numero_documento: '', nacionalidad: '', mrz1: '', mrz2: '' }));
+    setErrores((x) => ({ ...x, tipo_documento: undefined, numero_documento: undefined, nacionalidad: undefined, mrz: undefined }));
+  };
+
+  // MRZ: si pegan las dos líneas juntas en la primera casilla, se reparten solas.
+  // Cuando la MRZ es válida se llenan nombres, apellidos, número y nacionalidad (se pueden revisar).
+  const cambiarMrz = (linea) => (ev) => {
+    const v = limpiarMrz(ev.target.value);
+    setF((x) => {
+      let l1 = x.mrz1;
+      let l2 = x.mrz2;
+      if (linea === 1) {
+        l1 = v.slice(0, 44);
+        if (v.length > 44) l2 = v.slice(44, 88);
+      } else {
+        l2 = v.slice(0, 44);
+      }
+      const r = analizarMrz(l1, l2, undefined, { permitirVencido: true });
+      return r.ok
+        ? {
+            ...x, mrz1: l1, mrz2: l2,
+            numero_documento: r.datos.numero,
+            nombres: r.datos.nombres,
+            apellidos: r.datos.apellidos,
+            nacionalidad: normalizarNacionalidad(r.datos.nacionalidad),
+          }
+        : { ...x, mrz1: l1, mrz2: l2 };
+    });
+    setErrores((x) => ({ ...x, mrz: undefined, numero_documento: undefined, nombres: undefined, apellidos: undefined, nacionalidad: undefined }));
+  };
+
   async function enviar(ev) {
     ev.preventDefault();
     setError('');
     setEnviando(true);
     try {
-      const r = await pedir('/reclamos', { method: 'POST', body: JSON.stringify(f) });
+      const { mrz1, mrz2, ...datos } = f;
+      const cuerpo = esPasaporte && (mrz1 || mrz2) ? { ...datos, mrz: [mrz1, mrz2] } : datos;
+      const r = await pedir('/reclamos', { method: 'POST', body: JSON.stringify(cuerpo) });
       setHoja(r);
       window.scrollTo(0, 0);
     } catch (ex) {
@@ -126,19 +173,54 @@ export default function LibroReclamaciones() {
         <fieldset>
           <legend>1. Tus datos</legend>
           <div className="lr-filas">
-            <Campo etiqueta="Nombre completo" nombre="consumidor_nombre" errores={errores} ancho>
-              <input {...props('consumidor_nombre')} autoComplete="name" maxLength={150} />
-            </Campo>
             <Campo etiqueta="Tipo de documento" nombre="tipo_documento" errores={errores}>
-              <select {...props('tipo_documento')}>
+              <select value={f.tipo_documento} onChange={cambiarTipoDoc} aria-invalid={!!errores.tipo_documento}>
                 <option value="DNI">DNI</option>
                 <option value="CE">Carné de extranjería</option>
                 <option value="PASAPORTE">Pasaporte</option>
               </select>
             </Campo>
             <Campo etiqueta="Número de documento" nombre="numero_documento" errores={errores}>
-              <input {...props('numero_documento')} maxLength={12} />
+              <input {...props('numero_documento')} maxLength={12} autoComplete="off" />
             </Campo>
+
+            {esPasaporte && (
+              <div className="lr-ancho lr-mrz">
+                <p className="lr-nota">
+                  <strong>Opcional:</strong> copia las dos líneas de letras, números y «&lt;» del pie de la página de
+                  datos de tu pasaporte y completaremos tus nombres, apellidos, número y nacionalidad. Puedes pegar las
+                  dos líneas juntas en la primera casilla.
+                </p>
+                <Campo etiqueta="Línea 1 de la MRZ" nombre="mrz1" errores={errores}>
+                  <input value={f.mrz1} onChange={cambiarMrz(1)} maxLength={88} autoComplete="off"
+                    spellCheck={false} autoCapitalize="characters" />
+                </Campo>
+                <Campo etiqueta="Línea 2 de la MRZ" nombre="mrz" errores={errores}>
+                  <input value={f.mrz2} onChange={cambiarMrz(2)} maxLength={44} autoComplete="off"
+                    spellCheck={false} autoCapitalize="characters" aria-invalid={!!errores.mrz} />
+                </Campo>
+                {mrz?.incompleto && (
+                  <p className="lr-ayuda" role="status">Cada línea debe tener 44 caracteres (llevas {f.mrz1.length} y {f.mrz2.length}).</p>
+                )}
+                {mrz && !mrz.incompleto && !mrz.ok && <p className="lr-error" role="alert">{mrz.errores[0]}</p>}
+                {mrz?.ok && <p className="lr-ok" role="status">Datos tomados de la MRZ. Revísalos antes de enviar.</p>}
+              </div>
+            )}
+
+            <Campo etiqueta="Nombres" nombre="nombres" errores={errores}>
+              <input {...props('nombres')} autoComplete="given-name" maxLength={75} />
+            </Campo>
+            <Campo etiqueta="Apellidos" nombre="apellidos" errores={errores}>
+              <input {...props('apellidos')} autoComplete="family-name" maxLength={75} />
+            </Campo>
+            {f.tipo_documento !== 'DNI' && (
+              <Campo etiqueta={esPasaporte ? 'Nacionalidad' : 'Nacionalidad (opcional)'} nombre="nacionalidad" errores={errores}>
+                <select {...props('nacionalidad')}>
+                  <option value="">Elige un país</option>
+                  {NACIONALIDADES.map((n) => <option key={n.codigo} value={n.codigo}>{n.nombre}</option>)}
+                </select>
+              </Campo>
+            )}
             <Campo etiqueta="Domicilio" nombre="domicilio" errores={errores} ancho>
               <input {...props('domicilio')} autoComplete="street-address" maxLength={250} />
             </Campo>

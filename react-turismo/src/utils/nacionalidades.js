@@ -1,9 +1,13 @@
 // nacionalidades.js · Código de nacionalidad de la MRZ del pasaporte (ICAO 9303, 3 letras) -> nombre del país.
 //
+// IMPORTANTE: este archivo debe ser IDÉNTICO en
+//   react-turismo/src/utils/nacionalidades.js  (formularios y pantallas)
+//   backend-turismo/src/utils/nacionalidades.js (correos y PDF)
+//
 // La MRZ usa códigos ISO 3166-1 alfa-3 ("PER", "USA"…), más algunos propios de ICAO:
 // "D" = Alemania; GBD/GBN/GBO/GBP/GBS = variantes británicas; UNO/UNA/UNK = Naciones Unidas;
 // XXA/XXB/XXC/XXX = apátrida, refugiado o sin nacionalidad declarada.
-// El nombre lo da el navegador (Intl.DisplayNames) a partir del código alfa-2.
+// El nombre lo da Intl.DisplayNames (navegador o Node) a partir del código alfa-2.
 
 const ALFA3_A_ALFA2 = Object.fromEntries(
   (
@@ -40,7 +44,7 @@ let nombres = null;
 try {
   nombres = new Intl.DisplayNames(['es'], { type: 'region' });
 } catch {
-  nombres = null; // navegador muy antiguo: se muestra solo el código
+  nombres = null; // entorno sin Intl.DisplayNames: se muestra solo el código
 }
 
 // "PER" -> "Perú (PER)". Si el código no se conoce, se devuelve tal cual.
@@ -51,4 +55,21 @@ export function nombreNacionalidad(codigo) {
   const alfa2 = ALFA3_A_ALFA2[c];
   const nombre = alfa2 && nombres ? nombres.of(alfa2) : '';
   return nombre && nombre !== alfa2 ? `${nombre} (${c})` : c;
+}
+
+// Lista para elegir la nacionalidad a mano: [{ codigo: 'PER', nombre: 'Perú' }, …] ordenada por nombre.
+// (Sin las variantes propias de ICAO como "D" o "GBD": la MRZ las trae solas.)
+const VARIANTES = new Set(['D', 'GBD', 'GBN', 'GBO', 'GBP', 'GBS']);
+export const NACIONALIDADES = Object.entries(ALFA3_A_ALFA2)
+  .filter(([codigo]) => !VARIANTES.has(codigo))
+  .map(([codigo, alfa2]) => ({ codigo, nombre: (nombres && nombres.of(alfa2)) || codigo }))
+  .sort((a, b) => a.nombre.localeCompare(b.nombre, 'es'))
+  .concat(Object.entries(ESPECIALES).map(([codigo, nombre]) => ({ codigo, nombre })));
+
+// Código de la MRZ -> código de la lista ("D" -> "DEU", "GBD" -> "GBR"…)
+export function normalizarNacionalidad(codigo) {
+  const c = String(codigo || '').toUpperCase().replace(/</g, '');
+  if (c === 'D') return 'DEU';
+  if (/^GB[DNOPS]$/.test(c)) return 'GBR';
+  return c;
 }

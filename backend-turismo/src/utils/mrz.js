@@ -30,7 +30,8 @@ function fechaMrz(yymmdd, esNacimiento, hoy) {
   return f.toISOString().slice(0, 10);
 }
 
-export function analizarMrz(linea1, linea2, hoy = new Date()) {
+// opciones.permitirVencido: el pasaporte vencido no es error (Libro de Reclamaciones: cualquiera puede reclamar).
+export function analizarMrz(linea1, linea2, hoy = new Date(), { permitirVencido = false } = {}) {
   const a = limpiarMrz(linea1);
   const b = limpiarMrz(linea2);
   if (a.length !== LARGO || b.length !== LARGO) return { ok: false, incompleto: true, errores: [], datos: null };
@@ -65,7 +66,7 @@ export function analizarMrz(linea1, linea2, hoy = new Date()) {
   if (!nacimiento) errores.push('La fecha de nacimiento no es válida.');
   else if (new Date(nacimiento) > hoy) errores.push('La fecha de nacimiento no puede ser futura.');
   if (!vence) errores.push('La fecha de vencimiento no es válida.');
-  else if (new Date(vence + 'T23:59:59Z') < hoy) errores.push('El pasaporte está vencido.');
+  else if (!permitirVencido && new Date(vence + 'T23:59:59Z') < hoy) errores.push('El pasaporte está vencido.');
 
   return {
     ok: errores.length === 0,

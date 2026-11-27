@@ -3,6 +3,7 @@ import './admin.css';
 import '../legal/legal.css';
 import { pedir } from '../../servicios/api.js';
 import { useSesion } from '../../servicios/auth.js';
+import { nombreNacionalidad } from '../../utils/nacionalidades.js';
 
 // Libro de Reclamaciones: hojas recibidas y su respuesta (máximo 15 días hábiles).
 const DOCS = { DNI: 'DNI', CE: 'Carné de extranjería', PASAPORTE: 'Pasaporte' };
@@ -56,6 +57,7 @@ function Hoja({ r, onRespondido }) {
 
   const datos = [
     ['Documento', `${DOCS[r.tipo_documento] || r.tipo_documento} ${r.numero_documento}`],
+    r.nacionalidad && ['Nacionalidad', nombreNacionalidad(r.nacionalidad)],
     ['Teléfono', r.telefono],
     ['Correo', r.correo],
     ['Domicilio', r.domicilio],
